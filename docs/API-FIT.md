@@ -28,12 +28,13 @@
 | <a id="d4"></a>[D4](SCENARIOS.md#d4) | ✅ | `GeneratedWorld.AddLayer(Func<Area,Area>)` + `Area.ShallowCopy(cells:)` | `ShallowCopy` list-aliasing hazard (§9 #1) | S | bug-fix |
 | <a id="d5"></a>[D5](SCENARIOS.md#d5) | ✅ | `AreaSerializer.Serialize/Deserialize` | `GeneratedWorld.Serialize()`/`Area.ToString()` look like the API but emit a non-round-trippable debug label | S | bug-fix |
 | <a id="d6"></a>[D6](SCENARIOS.md#d6) | 🟡 | `WithAreas(types,tags,count,min,max)` → `BasicAreaGenerator` | coarse knobs; probability tables not exposed | M | C |
-| <a id="s1"></a>[S1](SCENARIOS.md#s1) | 🔴 | — (seed from `EnvRandomSeed`/`DateTime.Now`) | no coordinate→map seeding | M | D |
-| <a id="s2"></a>[S2](SCENARIOS.md#s2) | 🔴 | `Area.Create` fixed areas only | no border/seam connection between regions | L | D |
-| <a id="s3"></a>[S3](SCENARIOS.md#s3) | 🟡 | `AreaSerializer` | no store, region keying, or partial-load | L | D |
-| <a id="s4"></a>[S4](SCENARIOS.md#s4) | 🟡 | seed determinism (in-process verified) | depends on S1; cross-machine untested | M | D |
+| <a id="s1"></a>[S1](SCENARIOS.md#s1) | 🔴 | pipeline produces an `Area` (own seed) | no coordinate-addressed region factory; no persistence hook (generate-once model) | M | D |
+| <a id="s2"></a>[S2](SCENARIOS.md#s2) | 🔴 | `Area.Create` fixed areas only | no seam/border connection between *independently-generated* regions — **core** | L | D |
+| <a id="s3"></a>[S3](SCENARIOS.md#s3) | 🟡 | `AreaSerializer` | no store, region keying, or load-by-region — **core** (source of truth) | L | D |
+| <a id="s4"></a>[S4](SCENARIOS.md#s4) | 🟡 | seed determinism (in-process verified) | reframed: world consistency = persistence (S3), not regeneration | S | backlog |
 | <a id="s5"></a>[S5](SCENARIOS.md#s5) | 🔴 | — | needs S2 + conflict resolution | L | D (post-v1) |
 | <a id="s6"></a>[S6](SCENARIOS.md#s6) | 🟡 | `MarkDeadends`→`DeadEnd.DeadEndsExtension`; `MarkLongestPath`→`DijkstraDistance.LongestTrailExtension` | longest-path markers mis-tagged (§9 #2/#3) | S | bug-fix |
+| <a id="s7"></a>[S7](SCENARIOS.md#s7) | 🔴 | — (game-side state) | engine must expose stable region+cell identity to key mutations to; store is game-side | M | D (identity) |
 | <a id="c1"></a>[C1](SCENARIOS.md#c1) | 🟡 | full `GeneratedWorld` pipeline on the client | ~174 ms cold for 32×32; no budget; net47 target vs Godot .NET | L | D |
 | <a id="c2"></a>[C2](SCENARIOS.md#c2) | ✅ | `AreaSerializer.Deserialize` → iterate cells → tags | tags exist only after Block `ToMap()`; Border carries links only | S | C (doc) |
 | <a id="c3"></a>[C3](SCENARIOS.md#c3) | 🔴 | standalone `Area` per region | no chunk facade / cache / eviction | L | D |
@@ -44,30 +45,36 @@
 
 Signature-level sketches (illustrative). Each closes one or more matrix gaps; the seam theme is a *direction only* — its real design belongs to sub-project D.
 
-### P1 — Coordinate-deterministic seeding  *(closes S1, S4)*
+### P1 — Coordinate-addressed region generation  *(closes S1; supports S4, S7)*
 ```csharp
-// Derive a stable per-region seed from world seed + region coordinates.
-public static RandomSource ForRegion(long worldSeed, Vector regionCoords);
+// Generate a NEW region for a coordinate address, ONCE. Persistence (P2) stores it;
+// it is never regenerated. The optional per-region seed only makes the FIRST
+// generation reproducible for tests/bug-reports — it is NOT how consistency is achieved.
+public Area GenerateRegion(Vector regionCoords, GeneratorOptions options, int? seed = null);
 ```
-Removes the `DateTime.Now.Millisecond` default from the server path; makes `(worldSeed, coords)` reproducible on any machine.
+World consistency across players/instances comes from persisting and reloading this `Area` (P2), **not** from regenerating identical coordinates (that model was rejected — regions are independent generations).
 
-### P2 — Region / chunk facade  *(closes S3, C3)*
+### P2 — Region store & addressing (persistence source of truth)  *(closes S3; supports S1, S4, S7)*
 ```csharp
-public sealed class ChunkedWorld {
-    public ChunkedWorld(long worldSeed, Vector regionSize, GeneratorOptions options);
-    public Area GetOrGenerate(Vector regionCoords);   // cached
-    public void Evict(Vector regionCoords);
+public interface IRegionStore {                 // implemented by the game/server
+    bool TryLoad(Vector regionCoords, out Area region);
+    void Save(Vector regionCoords, Area region);
+}
+public sealed class World {                      // engine-side façade over the store
+    public World(IRegionStore store, GeneratorOptions options);
+    public Area GetOrCreate(Vector regionCoords); // load persisted, else GenerateRegion + stitch + Save
 }
 ```
-Turns "standalone Area per region" into an addressable, cached, evictable grid of regions. Uses P1 for seeding.
+Generate-once-then-load is the whole model. **Streaming/eviction (chunking, C3) is a *deferred* add-on** behind this same façade — not needed for first integration.
 
-### P3 — Seam-aware stitching  *(closes S2, S5 — direction only; designed in D)*
+### P3 — Seam-aware stitching (core)  *(closes S2, S5 — direction only; designed in D)*
 ```csharp
-// Inject a neighbor's border links as pre-carved HardLinks the builder must honor.
+// Generate a region that CONNECTS to already-persisted neighbors: their border
+// entrances are injected as pre-carved HardLinks the new region's builder must honor.
 public GeneratedWorld WithSeams(params Seam[] seams);
-// where Seam identifies a shared edge and the already-connected cells along it.
+// Seam = a shared edge + the neighbor's entrance cells along it.
 ```
-The hard part — border coordination and determinism at seams — is D's problem.
+Key: the neighbor was generated **independently** (different seed) — this is border-connection between separate maps, not slicing one maze. Border coordination is the hard part and is D's central design problem.
 
 ### P4 — Stable world-cell identity  *(closes C4)*
 ```csharp
@@ -89,17 +96,18 @@ No new API — *measure* region-gen time (warm, per size) via the existing perf 
 
 Sorted by priority for the game build (D consumes the top cluster as its opening work-list).
 
-| Priority | Item | Gap | Owner | Rationale |
+| Priority | Item | Gap | Phase | Rationale |
 |----------|------|-----|-------|-----------|
-| 1 | P5 Modern .NET target | L | **D** | Blocks *all* of Actor 3 in Godot; low-risk (proven to compile) |
-| 2 | P1 Coordinate-deterministic seeding | M | **D** | Foundation for S1/S4 and the whole persistent world |
-| 3 | P2 Region/chunk facade | L | **D** | Unblocks C3 streaming + S3 addressing |
-| 4 | P3 Seam-aware stitching | L | **D** | The core MMO-vision capability; hardest design |
-| 5 | P6 Metadata & pathing (+ bug fixes) | S–M | **D** + bug-fix | Cheap wins; longest-path bug affects spawn/exit |
-| 6 | P4 World-cell identity | M | **D** | Needed for fog-of-war persistence (mazzzze already has FoW) |
-| 7 | P7 Latency measurement | S | **D** | Informs whether C1 must be threaded |
-| — | D5 Serialize trap; D4 ShallowCopy aliasing | S | **bug-fix** | Correctness traps, independent of D |
-| — | D6 distribution knobs; C2 tags-need-Block | S–M | **C** | Cookbook territory (tuning + tile mapping) |
+| 1 | P5 Modern .NET target | L | 1 | Blocks *all* Godot integration; low-risk (proven to compile) — the first domino |
+| 2 | P3 Seam-aware stitching | L | 2 | **The** core MMO capability; connects independently-generated regions; hardest design |
+| 3 | P2 Region store & addressing | L | 2 | Persistence = source of truth (generate-once-load-many) |
+| 4 | P1 Coordinate-addressed region generation | M | 2 | The region factory the store calls |
+| 5 | P4 Stable region/cell identity | M | 2 | Keys persisted mutations (S7) + fog-of-war; mazzzze already has FoW |
+| 6 | P6 Metadata & pathing (+ bug fixes) | S–M | 1 | Cheap wins; longest-path bug affects entrance/exit markers |
+| 7 | P7 Latency measurement | S | 1 | Informs whether client-side gen must be threaded |
+| deferred | Chunk streaming / eviction (C3, within P2) | L | 2+ | Explicitly *not* needed for integration |
+| bug-fix | D5 Serialize trap; D4 ShallowCopy aliasing; S6 longest-path | S | 1 | Correctness traps; bite integration early |
+| cookbook | D6 distribution knobs; C2 tags-need-Block | S–M | 3 | Map-type recipes (tuning + tile mapping) |
 
 ## Validation log
 

@@ -10,11 +10,12 @@
 
 The long-term product is an **endless, dynamically generated maze/dungeon world** for an MMO RPG. The defining properties of that world are:
 
-- **Lazy generation.** Areas that no player has visited do not exist yet. They are generated on demand as players approach.
-- **Central persistence.** Once an area is generated (visited), it is persisted centrally on the server and streamed to every player, so the world is consistent and shared.
-- **Organic growth.** New communities or "countries" of players start in fresh, disconnected starting zones. As players explore, those zones eventually connect to the main landmass, producing a single massive open world that grows with the player base.
+- **Lazy generation.** Areas that no player has visited do not exist yet. They are generated on demand, once, when the first player reaches them.
+- **Generate once, persist, share.** The moment an area is generated it becomes **static, persisted state**. Every later visitor loads *that* generated map — nobody re-generates it. The world is not a pure function of coordinates; it is authored-by-generation and then stored. (In-place mutations layer on top — see §1.2.)
+- **Independent generation, then stitching.** A new region is a **fresh generation from scratch with its own seed** — *not* a slice of one big same-seed maze. When it is created it must **connect** to whatever already-generated neighbors it touches (entrances line up with entrances). Regions grow the world outward like tiles that were each drawn separately and then joined at the seams.
+- **Organic growth.** New communities or "countries" start in fresh, disconnected regions. As players explore, those regions stitch to the ones they meet, eventually merging separate islands into one massive shared world.
 
-`PlayersWorlds.Maps` is **not** that server. It is the **map backbone library**: the deterministic, reproducible engine that a game server calls to produce map geometry. The game itself owns persistence, networking, gameplay, loot, mobs, and the visual layer. The library's job is to answer, correctly and reproducibly: *"What does the map look like here?"*
+`PlayersWorlds.Maps` is **not** that server. It is the **map backbone library**: the engine a game server (or the client itself) calls to **generate a new region and connect it to its neighbors**. The game owns persistence, networking, gameplay, loot, mobs, mutations, and the visual layer. The library's job is: *"generate a correct, connectable region here, once."* Determinism still matters *within* a single generation (reproducible tests/bug reports from a seed), but the world's consistency comes from **persistence**, not from regenerating the same coordinates.
 
 ```mermaid
 graph LR
@@ -29,9 +30,9 @@ graph LR
     subgraph Client["Unity / Godot client (out of scope)"]
         R[Tile rendering + physics]
     end
-    P -->|"request: generate/stitch a region (seed + coords)"| E
+    P -->|"request: generate a new region + connect to neighbors"| E
     E -->|"Area (cells, tags, links, POIs)"| P
-    P -->|streams cells| R
+    P -->|"persist once, then stream to all players"| R
     G -.->|reads cell tags: dead-ends, start/end| R
 ```
 
@@ -45,6 +46,34 @@ The library produces an **`Area`**: an N-dimensional grid of **`Cell`s**. Each c
 - **markers** attached during post-processing: dead-ends (good loot spots) and the guaranteed longest path's start/end cells (good spawn/exit points).
 
 The consuming game iterates the cells and decides what to draw and spawn. The library guarantees the *structure* (solvable maze, rooms with entrances, impassable zones respected); the game supplies the *meaning*.
+
+### 1.2 World model & persistence lifecycle
+
+The unit of the world is a **region**: an independently-generated `Area` with a coordinate address. Its lifecycle:
+
+```mermaid
+sequenceDiagram
+    participant P1 as First visitor
+    participant Eng as Map engine (library)
+    participant Store as Persistence (game/server)
+    participant P2 as Later visitor
+    P1->>Eng: enter un-generated region R
+    Eng->>Eng: generate R from scratch (own seed) + connect to existing neighbors
+    Eng-->>Store: persist R (static map structure)
+    P1->>Store: plant a tree in R
+    Store-->>Store: record mutation (game object state) keyed to R
+    P2->>Store: enter R later
+    Store-->>P2: load persisted R + its mutations (sees the tree)
+    P2->>Store: cut the tree
+    Store-->>P1: mutation propagates (P1 sees it cut)
+```
+
+**Responsibility boundary — critical for the API contract:**
+
+- **Map engine (this library) owns:** generating a region, guaranteeing it is a correct/solvable map, **connecting it to already-existing neighbors** at shared borders, and defining the region as a serializable unit with a stable coordinate address and per-cell identity.
+- **Game / server owns:** the persistence store itself, and all **in-place mutations** (a planted or cut tree, opened doors, placed loot). Mutations are game-object state *keyed to* the engine's region identity + cell coordinates; the engine does not model trees, but its region/cell identity must be stable enough for the game to key mutations to it across loads.
+
+This is why **persistence** and **seam-stitching** — not coordinate-deterministic regeneration — are the load-bearing capabilities: the world is consistent because it is *stored*, and it is one world because regions are *connected*, even though each was generated independently.
 
 ---
 
@@ -135,9 +164,10 @@ Adds a maze algorithm, an area type, or a renderer. Cares about the 98% coverage
 
 These are **NOT COMPLETE** relative to the MMO vision and are the natural roadmap. Each is mapped to a usage scenario in [SCENARIOS.md](SCENARIOS.md) and a proposal in [API-FIT.md](API-FIT.md#proposals):
 
-- ❌ **Coordinate-deterministic generation.** No `(world seed, coordinates) → map` seeding; seeds come from `EnvRandomSeed` / `DateTime.Now`. Blocks a consistent addressable world — see [API-FIT: P1](API-FIT.md#p1-coordinate-deterministic-seeding-closes-s1-s4).
-- ❌ **Region stitching API.** No first-class "generate the missing region adjacent to this existing one, connecting at the shared border." The primitives exist (fixed areas, serialization, the distributor's fixed-area invariant) but no orchestration ties them together — see [API-FIT: P3](API-FIT.md#proposals).
-- ❌ **Central persistence / streaming / chunking.** Serialization exists (text `Area:{…}`), but there is no store, no chunk/region keying, no partial-load-by-coordinate, and no chunk facade for streaming around the player — see [API-FIT: P2](API-FIT.md#proposals).
+- ❌ **Seam-stitching (core).** No first-class "generate a new region and connect its entrances to whatever already-generated neighbors it touches." Each region is an *independent* generation (its own seed), so this is border-connection between separately-built maps — **not** slicing one same-seed maze. Primitives exist (fixed areas, the distributor's fixed-area invariant) but nothing ties them together — see [API-FIT: P3](API-FIT.md#proposals). *This is the load-bearing MMO capability.*
+- ❌ **Persistence as source of truth (core).** The world is consistent because generated regions are *stored and reloaded*, never regenerated. Serialization exists (`AreaSerializer`), but there is no store, region keying by coordinate, or load-by-region — see [API-FIT: P2](API-FIT.md#proposals).
+- ❌ **Region addressing & stable identity.** Regions need a coordinate address and stable per-cell identity so the game can key persisted mutations (planted/cut trees) and fog-of-war state to them across loads. A per-region seed makes the *first* generation reproducible, but coordinate-deterministic *re*generation is explicitly **not** the model (persistence is) — see [API-FIT: P1](API-FIT.md#proposals), [P4](API-FIT.md#proposals).
+- ❌ **Mutation lifecycle (boundary).** In-place, shared, persisted mutations (plant/cut a tree) are *game* state keyed to region+cell identity — the engine does not model them, but must expose stable identity for the game to key them (see §1.2).
 - ❌ **Modern .NET target.** The library targets .NET Framework 4.7 (Unity), but Godot 4 runs on .NET 8+. The core compiles unchanged on modern .NET but is not yet multi-targeted — see [API-FIT: P5](API-FIT.md#proposals).
 - ❌ **Elevation / 3D.** `GeneratedWorld.WithElevation` throws `NotImplementedException`; primitives are N-D-ready but concrete geometry is 2D-only.
 - ❌ **Environment tagging.** `GeneratedWorld.AddEnvironmentAreas` is a no-op stub (biomes/terrain tags planned, not built).

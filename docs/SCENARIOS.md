@@ -62,19 +62,19 @@ The three actors:
 
 ## Actor 2 — Game server (authoritative, persistent, on demand)
 
-### S1 — Generate a new zone at world coordinates  🔴
+### S1 — Generate a new region on first visit  🔴
 
-**Trigger:** A new community needs a starting zone at world offset `(X, Y)`.
-**Wants:** A map that is a deterministic function of `(world seed, region coordinates)` — so the same place is always the same map.
-**Interaction (today):** none direct; seeds come from `EnvRandomSeed` / `DateTime.Now.Millisecond`, not from coordinates.
+**Trigger:** A player reaches an un-generated region at coordinate `(X, Y)`.
+**Wants:** Generate a fresh region *once*, with its own seed, and hand it back to be **persisted** under that coordinate address; every later visitor loads the stored copy. The map is authored-by-generation and stored — **not** a deterministic function of coordinates.
+**Interaction (today):** the pipeline generates an `Area`, but there is no coordinate-addressed region factory and no persistence hook.
 **Support:** 🔴 — see [API-FIT: S1](API-FIT.md#s1).
 
-### S2 — Generate the missing region adjacent to an existing one  🔴
+### S2 — Connect a new region to its existing neighbors (seam-stitching)  🔴  *(core)*
 
-**Trigger:** A player walks off the edge of a generated region.
-**Wants:** Generate the neighbor so its corridors *connect* at the shared border rather than dead-ending or overlapping.
+**Trigger:** A newly generated region borders one or more already-generated (persisted) regions.
+**Wants:** Each region is an *independent* generation (its own seed); on creation its entrances must **connect** to the entrances of the neighbors it touches, so the separately-built maps join into one navigable world. This is border-connection between independent maps, **not** slicing one same-seed maze.
 **Interaction (today):** fixed-position `Area.Create` areas and the distributor's "don't disturb fixed areas" rule are primitives, but there is no seam/border-connection API.
-**Support:** 🔴 — see [API-FIT: S2](API-FIT.md#s2).
+**Support:** 🔴 — the load-bearing MMO capability — see [API-FIT: S2](API-FIT.md#s2).
 
 ### S3 — Persist a region and retrieve it later  🟡
 
@@ -83,12 +83,19 @@ The three actors:
 **Interaction:** `AreaSerializer` gives lossless text; there is no store, region keying, or partial-load layer.
 **Support:** 🟡 — serialization exists, persistence does not — see [API-FIT: S3](API-FIT.md#s3).
 
-### S4 — Identical region on any machine  🟡
+### S4 — Consistent world across instances via persistence  🟡
 
-**Trigger:** Multiple server instances must agree on the same world.
-**Wants:** `(world seed, coords)` → byte-identical region regardless of host.
-**Interaction:** seed-based determinism holds in-process; cross-machine equality is untested and hinges on coordinate-seeding (S1).
-**Support:** 🟡 — see [API-FIT: S4](API-FIT.md#s4).
+**Trigger:** Multiple server instances / all players must agree on the same world.
+**Wants:** Everyone sees the *same* region — achieved by **loading the one persisted copy**, not by regenerating it identically. Cross-machine byte-identical *regeneration* is explicitly **not** required (and not the model).
+**Interaction:** seed-based determinism holds in-process (useful for tests/repro), but world consistency is a *persistence* property (S1/S3), not a regeneration property.
+**Support:** 🟡 — reframed: depends on persistence (S3), not on deterministic regeneration — see [API-FIT: S4](API-FIT.md#s4).
+
+### S7 — Persist & share in-place mutations  🔴  *(boundary: game owns state, engine owns identity)*
+
+**Trigger:** A player alters a region — plants a tree; another player later cuts it.
+**Wants:** The change persists and is visible to *all* players who visit the region afterward.
+**Interaction:** the *game* stores object mutations; it keys them to the **engine's region address + cell identity**. The engine does not model trees, but must give stable, load-surviving identity to key against (see PRD §1.2).
+**Support:** 🔴 — the engine's obligation is *stable region/cell identity* (see [C4](#c4)); the mutation store itself is game-side — see [API-FIT: S7](API-FIT.md#s7).
 
 ### S5 — Merge two independently-grown "countries"  🔴  *(vision / post-v1)*
 
