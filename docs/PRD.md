@@ -133,13 +133,16 @@ Adds a maze algorithm, an area type, or a renderer. Cares about the 98% coverage
 
 ## 6. Gaps between vision and implementation (honest assessment)
 
-These are **NOT COMPLETE** relative to the MMO vision and are the natural roadmap:
+These are **NOT COMPLETE** relative to the MMO vision and are the natural roadmap. Each is mapped to a usage scenario in [SCENARIOS.md](SCENARIOS.md) and a proposal in [API-FIT.md](API-FIT.md#proposals):
 
-- ❌ **Region stitching API.** No first-class "generate the missing region adjacent to this existing one, connecting at the shared border." The primitives exist (fixed areas, serialization, the distributor's fixed-area invariant) but no orchestration ties them together.
-- ❌ **Central persistence / streaming.** Serialization exists (text `Area:{…}`), but there is no store, no chunk/region keying, no partial-load-by-coordinate.
+- ❌ **Coordinate-deterministic generation.** No `(world seed, coordinates) → map` seeding; seeds come from `EnvRandomSeed` / `DateTime.Now`. Blocks a consistent addressable world — see [API-FIT: P1](API-FIT.md#p1-coordinate-deterministic-seeding-closes-s1-s4).
+- ❌ **Region stitching API.** No first-class "generate the missing region adjacent to this existing one, connecting at the shared border." The primitives exist (fixed areas, serialization, the distributor's fixed-area invariant) but no orchestration ties them together — see [API-FIT: P3](API-FIT.md#proposals).
+- ❌ **Central persistence / streaming / chunking.** Serialization exists (text `Area:{…}`), but there is no store, no chunk/region keying, no partial-load-by-coordinate, and no chunk facade for streaming around the player — see [API-FIT: P2](API-FIT.md#proposals).
+- ❌ **Modern .NET target.** The library targets .NET Framework 4.7 (Unity), but Godot 4 runs on .NET 8+. The core compiles unchanged on modern .NET but is not yet multi-targeted — see [API-FIT: P5](API-FIT.md#proposals).
 - ❌ **Elevation / 3D.** `GeneratedWorld.WithElevation` throws `NotImplementedException`; primitives are N-D-ready but concrete geometry is 2D-only.
 - ❌ **Environment tagging.** `GeneratedWorld.AddEnvironmentAreas` is a no-op stub (biomes/terrain tags planned, not built).
 - 🚧 **Longest-path markers** are computed but mis-tagged (end marker lands on the start cell; trail cells mis-tagged) — see the component review.
+- 🚧 **The `Serialize()` trap.** `GeneratedWorld.Serialize()` / `Area.ToString()` return a debug label, not a round-trippable string; lossless save/load requires `AreaSerializer` — see [API-FIT: findings](API-FIT.md#notable-findings-from-validation).
 - 🚧 **PNG rendering** writes to a hard-coded `antialias.png`, supports only block style, and has an invisible fallback color.
 - 🚧 **>19 auto-distributed areas** crash the simulation (nickname array bound) — a scale ceiling for the distributor.
 

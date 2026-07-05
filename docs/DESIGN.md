@@ -41,14 +41,17 @@ C4Context
     Person(dev, "Game / server developer", "Integrates the library to generate map geometry")
     System(lib, "PlayersWorlds.Maps", "Deterministic maze/dungeon map generation library (.NET Framework 4.7)")
     System_Ext(game, "Game or MMO server", "Owns persistence, streaming, gameplay; calls the library")
-    System_Ext(client, "Unity / Godot client", "Renders tiles & physics from cell data")
+    System_Ext(client, "Unity / Godot client", "Renders tiles from cell data; can also generate map parts itself")
     System_Ext(cli, "maze-gen CLI", "Dev tool: preview, round-trip, perf-run")
     Rel(dev, lib, "Calls fluent API")
     Rel(game, lib, "Requests maps (seed + size), gets Areas")
     Rel(game, client, "Streams cells")
+    Rel(client, lib, "Generates map parts in real time (server optional)")
     Rel(cli, lib, "Exercises API for preview/debug")
     UpdateLayoutConfig($c4ShapeInRow="2")
 ```
+
+The in-game client can call the library **directly** to generate map parts in real time — an optional path (no server required) that is especially useful for single-player play and early development before a game server exists. In that mode the client plays both the "generate" and "consume" roles.
 
 ### 2.2 Containers
 
@@ -70,6 +73,10 @@ C4Container
 ```
 
 ### 2.3 Components (core library)
+
+> **Under review:** the generation pipeline is being assessed scenario-by-scenario in
+> [SCENARIOS.md](SCENARIOS.md) and [API-FIT.md](API-FIT.md); it may be refactored in the
+> chunked-engine design (sub-project D). No structural change is implied here yet.
 
 ```mermaid
 C4Component
