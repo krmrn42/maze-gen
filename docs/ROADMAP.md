@@ -114,7 +114,7 @@ The single interface `mazzzze` codes against, designed to leave room for later p
   - `docs/PRD.md`, `docs/DESIGN.md`, `docs/COMPONENT-REVIEW.md`, `CLAUDE.md` (baseline docs)
   - `docs/SCENARIOS.md`, `docs/API-FIT.md` (scenario catalog + validated API-fit + proposals)
   - `docs/ROADMAP.md` (this file)
-  - `docs/superpowers/specs/2026-07-05-scenarios-api-fit-design.md`, `docs/superpowers/plans/2026-07-05-scenarios-api-fit.md`
+  - *(The brainstorming spec/plan that produced these were removed once B shipped — the decision log in §8 and the roadmap supersede them.)*
 - **maze-gen:** .NET Framework 4.7; **mono not installed locally** — the library was validated by compiling `src/**/*.cs` as a DLL and running snippets on **.NET 10** (probe in the session scratchpad, `apifit-probe` + `mazelib`). 13/13 scenarios validated; see [API-FIT validation log](API-FIT.md#validation-log). The `circles` branch has an unrelated in-progress refactor — **untouched**.
 - **mazzzze:** `/home/data/repos/github.com/vasiliy-kiryukhin/mazzzze`, Godot 4 (`Godot.NET.Sdk/4.7`), **net8.0** — see §5.
 
@@ -150,6 +150,5 @@ The single interface `mazzzze` codes against, designed to leave room for later p
 ## References
 - PR #40: `https://github.com/krmrn42/maze-gen/pull/40`
 - Docs: `docs/{PRD,DESIGN,COMPONENT-REVIEW,SCENARIOS,API-FIT,ROADMAP}.md`, `CLAUDE.md`
-- Spec/plan: `docs/superpowers/specs/…`, `docs/superpowers/plans/…`
 - Game: `/home/data/repos/github.com/vasiliy-kiryukhin/mazzzze` (Godot 4, net8.0)
 - Validation harness (scratchpad, not committed): net10 probe referencing `src` as `PlayersWorlds.Maps.dll`
