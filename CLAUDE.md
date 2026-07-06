@@ -28,7 +28,7 @@ make ci             # lint + build + test (CI parity)
 
 The lower-level scripts still exist for finer control (`./tasks/test.sh --filter …`, `./tasks/flake.sh` / `deflake.sh` to loop tests for seed-sensitivity, etc.).
 
-**Smoke render / e2e check.** `make demo` (== `usecase -c 1 -r <seed>`) composes an Environment with two maze rooms and renders it to ASCII — a fast, visible end-to-end check before a PR. CI runs the same render (fixed seed, deterministic) and posts it to the run/PR **job summary**; a crash there fails the check. (The plain `generate` verb still crashes — see sharp edges — so `demo`/`usecase` is the go-to render.)
+**Smoke render / e2e check.** `make demo` (== `usecase -c 1 -r <seed>`) builds **one maze with two rooms** (a `Maze` layer + two `Hall` child areas) and renders it to ASCII with square-looking cells (`RectCells(2, 1)` — 2 wide × 1 tall reads square in a terminal) — a fast, visible end-to-end check before a PR. CI runs the same render (fixed seed, deterministic), writes it to the run **job summary**, and posts it as a **sticky PR comment** (updated in place each push). A crash there fails the check. (The plain `generate` verb still crashes — see sharp edges — so `demo`/`usecase` is the go-to render.)
 
 Reproduce a failing random test with its printed seed (NUnit `TestContext` params):
 ```bash
