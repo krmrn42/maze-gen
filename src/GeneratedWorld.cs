@@ -1,11 +1,11 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using PlayersWorlds.Maps.Maze;
+using System.Linq;
 using PlayersWorlds.Maps.Areas;
-using static PlayersWorlds.Maps.Maze.Maze2DRenderer;
 using PlayersWorlds.Maps.MapFilters;
+using PlayersWorlds.Maps.Maze;
 using PlayersWorlds.Maps.Maze.PostProcessing;
+using static PlayersWorlds.Maps.Maze.Maze2DRenderer;
 
 namespace PlayersWorlds.Maps {
     /// <summary>
@@ -159,7 +159,8 @@ namespace PlayersWorlds.Maps {
                     Maze2DBuilder.BuildMaze(area, options);
                 }
                 area.ChildAreas.ForEach(a => CreateMaze(a));
-            };
+            }
+            ;
             CreateMaze(CurrentLayer);
             return this;
         }

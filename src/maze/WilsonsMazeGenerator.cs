@@ -50,7 +50,8 @@ namespace PlayersWorlds.Maps.Maze {
                         walkPath.RemoveRange(containsAt + 1, walkPath.Count - containsAt - 1);
                     else walkPath.Add(nextCell);
                     builder.TryPickRandomNeighbor(nextCell, out nextCell, honorPriority: false); //3x3, 4x3
-                };
+                }
+                ;
 
                 if (!nextCell.IsEmpty) {
                     walkPath.Add(nextCell);

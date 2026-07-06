@@ -1,4 +1,4 @@
-﻿using CommandLine;
+using CommandLine;
 
 namespace PlayersWorlds.Maps {
     partial class MainClass {
