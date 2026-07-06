@@ -17,8 +17,27 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore maze-gen.sln
 
+      - name: Lint (formatting / .editorconfig)
+        run: dotnet format maze-gen.sln --verify-no-changes
+
       - name: Build
         run: dotnet build maze-gen.sln -c Debug --no-restore
 
       - name: Test
         run: dotnet test maze-gen.sln -c Debug --no-build --filter "TestCategory!=Load & TestCategory!=Integration"
+
+      - name: Maze smoke render
+        # End-to-end sanity: compose an environment with two maze rooms and
+        # render it to ASCII (fixed seed -> deterministic). Fails the check if
+        # the pipeline crashes; posts the maze to the run/PR summary.
+        run: |
+          dotnet run --project maze-gen -c Debug --no-build -- usecase -c 1 -r 12345 | tee smoke.txt
+          {
+            echo '## 🌀 Maze smoke render'
+            echo ''
+            echo '`usecase -c 1 -r 12345` — an environment with two maze rooms:'
+            echo ''
+            echo '```'
+            cat smoke.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
