@@ -176,5 +176,37 @@ namespace PlayersWorlds.Maps.Serializer {
             Assert.That(
                 deserializedArea[new Vector(0, 0)].HasLinks(new Vector(0, 1)));
         }
+
+        // D5 trap (docs/COMPONENT-REVIEW.md): the store seam behind
+        // IRegionStore MUST round-trip through AreaSerializer, which is
+        // lossless, and MUST NOT use GeneratedWorld.Serialize() /
+        // Area.ToString(), which return a short debug label that drops all
+        // cells and links and does not deserialize back into an Area.
+        [Test]
+        public void AreaSerializerIsLossless_ToStringIsADebugLabelTrap() {
+            var area = Area.CreateMaze(new Vector(5, 5));
+            area[new Vector(0, 0)].HardLinks.Add(new Vector(0, 1));
+            area[new Vector(0, 1)].HardLinks.Add(new Vector(0, 0));
+
+            // Lossless: links survive a full AreaSerializer round trip -- this
+            // is the path the store seam uses.
+            var roundTripped =
+                _serializer.Deserialize(_serializer.Serialize(area));
+            Assert.That(
+                roundTripped[new Vector(0, 0)].HasLinks(new Vector(0, 1)),
+                Is.True);
+
+            // The trap: Area.ToString() (exactly what GeneratedWorld.Serialize()
+            // returns) is a debug label carrying no cell/link data...
+            var debugLabel = area.ToString();
+            Assert.That(debugLabel, Does.Not.Contain("Cell"));
+            // ...and it is not even a valid serialized Area, so feeding it to
+            // the store's deserializer fails loudly rather than silently
+            // reconstructing an empty, link-less region.
+            Assert.That(() => _serializer.Deserialize(debugLabel),
+                Throws.Exception,
+                "GeneratedWorld.Serialize()/Area.ToString() must not be fed " +
+                "to the store seam; it is a lossy debug label, not a format.");
+        }
     }
 }

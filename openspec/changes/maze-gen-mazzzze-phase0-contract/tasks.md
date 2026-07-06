@@ -1,9 +1,9 @@
 ## 1. maze-gen behavior fixes (documented with examples)
 
-- [ ] 1.1 Fix `DijkstraDistance.FindLongestTrail` longest-path mis-tag (end marker lands on start cell; trail cells mis-tagged) so entrance/exit resolve to two distinct correct cells (§9 #2/#3)
-- [ ] 1.2 Add/adjust unit tests asserting the entrance and exit tags land on the correct, distinct cells
-- [ ] 1.3 Confirm the lossless round-trip path is `AreaSerializer.Serialize/Deserialize`; add a test asserting `GeneratedWorld.Serialize()`/`Area.ToString()` are debug labels that MUST NOT be fed to the store seam (documents the D5 trap)
-- [ ] 1.4 Add a runnable example (CLI `usecase`/snippet) demonstrating the corrected POIs and the lossless round-trip
+- [x] 1.1 Fix `DijkstraDistance.FindLongestTrail` longest-path mis-tag (end marker lands on start cell; trail cells mis-tagged) so entrance/exit resolve to two distinct correct cells (§9 #2/#3)
+- [x] 1.2 Add/adjust unit tests asserting the entrance and exit tags land on the correct, distinct cells
+- [x] 1.3 Confirm the lossless round-trip path is `AreaSerializer.Serialize/Deserialize`; add a test asserting `GeneratedWorld.Serialize()`/`Area.ToString()` are debug labels that MUST NOT be fed to the store seam (documents the D5 trap)
+- [x] 1.4 Add a runnable example (CLI `usecase`/snippet) demonstrating the corrected POIs and the lossless round-trip
 
 ## 2. Façade contract types (region-facade)
 
