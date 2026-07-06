@@ -2,6 +2,10 @@ name: Build and Test .NET
 
 on: [push] # Trigger the workflow on push events
 
+permissions:
+  contents: read
+  pull-requests: write # to post the smoke-render comment on the PR
+
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
@@ -27,17 +31,52 @@ jobs:
         run: dotnet test maze-gen.sln -c Debug --no-build --filter "TestCategory!=Load & TestCategory!=Integration"
 
       - name: Maze smoke render
-        # End-to-end sanity: compose an environment with two maze rooms and
-        # render it to ASCII (fixed seed -> deterministic). Fails the check if
-        # the pipeline crashes; posts the maze to the run/PR summary.
+        # End-to-end sanity: build one maze with two rooms and render it to
+        # ASCII (fixed seed -> deterministic). Fails the check if the pipeline
+        # crashes; posts the maze to the run summary.
         run: |
           dotnet run --project maze-gen -c Debug --no-build -- usecase -c 1 -r 12345 | tee smoke.txt
           {
             echo '## 🌀 Maze smoke render'
             echo ''
-            echo '`usecase -c 1 -r 12345` — an environment with two maze rooms:'
+            echo '`usecase -c 1 -r 12345` — one maze with two rooms:'
             echo ''
             echo '```'
             cat smoke.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment maze render on PR
+        # Post the same render as a sticky PR comment (updated in place, not
+        # spammed). Skipped on the default branch and when no PR is open.
+        # Only static/first-party data is used -> no script-injection surface.
+        if: github.ref_name != 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "No open PR for $BRANCH; skipping comment."
+            exit 0
+          fi
+          {
+            echo '<!-- maze-smoke-render -->'
+            echo '## 🌀 Maze smoke render'
+            echo ''
+            echo '`usecase -c 1 -r 12345` — one maze with two rooms (auto-updated each push):'
+            echo ''
+            echo '```'
+            cat smoke.txt
+            echo '```'
+          } > comment.md
+          id=$(gh api --paginate "repos/$REPO/issues/$pr/comments" \
+                 --jq '.[] | select(.body | contains("<!-- maze-smoke-render -->")) | .id' | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@comment.md >/dev/null
+            echo "Updated sticky comment on PR #$pr."
+          else
+            gh api -X POST "repos/$REPO/issues/$pr/comments" -F body=@comment.md >/dev/null
+            echo "Created comment on PR #$pr."
+          fi
