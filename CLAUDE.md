@@ -4,34 +4,51 @@ Guidance for AI assistants working in this repo. Keep it high-signal; update it 
 
 ## What this is
 
-A **procedural maze/dungeon map-generation library** (`PlayersWorlds.Maps`) that produces the *backbone* of game maps — corridors, rooms, halls, caves, impassable zones — for 2D/3D games (Unity/Godot). It generates map geometry; the consuming game supplies gameplay, loot, mobs, and the visual layer. Long-term vision is an endless, server-persisted, dynamically-stitched MMO world (see `docs/PRD.md`); the library is only the deterministic map engine, not the server.
+A **procedural maze/dungeon map-generation library** (`PlayersWorlds.Maps`) that produces the *backbone* of game maps — corridors, rooms, halls, caves, impassable zones — for 2D/3D games (the consuming game here is the Godot MMO `mazzzze`). It generates map geometry; the consuming game supplies gameplay, loot, mobs, and the visual layer. Long-term vision is an endless, server-persisted, dynamically-stitched MMO world (see `docs/PRD.md`); the library is only the deterministic map engine, not the server.
 
 Full docs: **`docs/PRD.md`** (why/journeys), **`docs/DESIGN.md`** (architecture, API, algorithms, C4), **`docs/COMPONENT-REVIEW.md`** (per-component detail + defect register).
 
 ## Runtime constraint (important)
 
-Targets **.NET Framework 4.7** on purpose — later runtimes are unsupported by Unity. Built with **Mono on Linux** (MSBuild + `packages.config`, non-SDK projects). The core `src` library has **no third-party dependencies** so it drops cleanly into a Unity assets folder. Don't "modernize" to SDK-style projects or newer TFMs without discussing the Unity constraint.
+Targets **.NET 8** — the runtime of the consuming Godot game (`mazzzze`). Built with the **.NET SDK** on Linux (`dotnet build`/`dotnet test`, SDK-style projects, `PackageReference`). The core `src` library stays **BCL-only** (no third-party dependencies) so it drops cleanly into a Godot project. (History: the library previously targeted .NET Framework 4.7 on Mono for Unity; Unity/Mono support was intentionally dropped — see `docs/ROADMAP.md`.)
 
 ## Build / test / run
 
-Tasks live in `tasks/*.sh` and `.vscode/tasks.json`:
+Everyday commands are in the **`Makefile`** (`make` or `make help` lists them); they wrap `dotnet` and the `tasks/*.sh` scripts (also wired into `.vscode/tasks.json`).
 
 ```bash
-./tasks/build.sh                 # nuget restore + msbuild
-./tasks/test.sh --where="Category!=Load AND Category!=Integration"   # fast unit loop (what CI runs)
-./tasks/test.sh                  # all tests
-./tasks/test.sh --where="Category=Integration"
-./tasks/test.sh --where="Category=Load"
-./tasks/coverage.sh              # AltCover → Cobertura → ReportGenerator + Gendarme; also flags missing test classes
-./tasks/perf.sh                  # Mono profiler over `mazegen perfrun`
-./tasks/flake.sh / deflake.sh    # loop tests to catch/confirm seed-sensitivity
-mono --debug build/Debug/mazegen/maze-gen.exe generate -a RecursiveBacktracker -s 20x20
+make build          # dotnet build
+make test           # fast unit loop (what CI runs)  |  make test-all / test-integration / test-load
+make lint           # dotnet format --verify-no-changes (enforces .editorconfig)
+make format         # auto-format to .editorconfig
+make demo           # render a maze with two rooms as ASCII (CASE=1 SEED=12345) — quick e2e smoke
+make coverage       # -> build/coverage   |  make perf -> build/perf
+make ci             # lint + build + test (CI parity)
 ```
 
-Reproduce a failing random test with its printed seed:
+The lower-level scripts still exist for finer control (`./tasks/test.sh --filter …`, `./tasks/flake.sh` / `deflake.sh` to loop tests for seed-sensitivity, etc.).
+
+**Smoke render / e2e check.** `make demo` (== `usecase -c 1 -r <seed>`) builds **one maze with two rooms** (a `Maze` layer + two `Hall` child areas) and renders it to ASCII with square-looking cells (`RectCells(2, 1)` — 2 wide × 1 tall reads square in a terminal) — a fast, visible end-to-end check before a PR. CI runs the same render (fixed seed, deterministic), writes it to the run **job summary**, and posts it as a **sticky PR comment** (updated in place each push). A crash there fails the check. (The plain `generate` verb still crashes — see sharp edges — so `demo`/`usecase` is the go-to render.)
+
+Reproduce a failing random test with its printed seed (NUnit `TestContext` params):
 ```bash
-./tasks/test.sh --test="...FullyQualified.Test(\"case\")" --params SEED=12345
+./tasks/test.sh --filter "FullyQualifiedName~SomeTest" -- 'TestRunParameters.Parameter(name="SEED", value="12345")'
 ```
+
+### Coverage, performance, debugging
+
+```bash
+./tasks/coverage.sh              # coverlet (XPlat Code Coverage) + ReportGenerator
+                                 #   -> build/coverage/report/{Summary.txt,index.html,Cobertura.xml}
+                                 #   also audits: prints "MISSING TEST CLASS FOR <src>"
+./tasks/perf.sh                  # dotnet-trace over the `perfrun` workload
+                                 #   -> build/perf/perfrun.speedscope.json (open at speedscope.app) + wall-clock
+./tasks/debugger.sh run -p <FullyQualified.Test>   # debug via netcoredbg (CLI), or press F5 in VS Code
+```
+
+- Coverage exclusions live in `tasks/coverlet.runsettings` (test/mock assemblies, renderers, a couple of noisy types).
+- `reportgenerator` and `dotnet-trace` are pinned in `.config/dotnet-tools.json` and restored on demand (`dotnet tool restore`); `coverlet.collector` is a `PackageReference` in the test project. No global installs.
+- Terminal debugging needs [`netcoredbg`](https://github.com/Samsung/netcoredbg) on `PATH`; in VS Code the "Debug maze-gen" launch configs use the C# extension's CoreCLR debugger directly.
 
 ## Architecture in one breath
 
@@ -52,7 +69,7 @@ Entry point is the fluent `GeneratedWorld` builder (`src/GeneratedWorld.cs`).
 ## Conventions
 
 - **House style is non-standard on purpose** and enforced by `.editorconfig` — same-line `{` (no extra line break before braces). Auto-format before committing. Don't reformat unrelated code.
-- **Don't commit `.csproj` changes an IDE made** (MonoDevelop/VS bloat them). README calls this out; keep the projects VSCode-clean.
+- **Keep the `.csproj` files minimal SDK-style** — don't commit IDE-added cruft (globs, per-file `<Compile>`, absolute paths); the SDK globs sources automatically.
 - **Coverage goal ≥98%**, **one test class per source file** (the coverage task prints `MISSING TEST CLASS FOR …`). New public code needs `///` XML docs; don't mark internal code `public`.
 - **Testing tiers**: unit (fast, CI), `Category=Integration` (serialized tricky layouts), `Category=Load` (statistical, tolerates <1% failure), performance (`perfrun`).
 
@@ -61,9 +78,10 @@ Entry point is the fluent `GeneratedWorld` builder (`src/GeneratedWorld.cs`).
 | Project | What | Deps |
 |---------|------|------|
 | `src/` → `PlayersWorlds.Maps` | Core library | none (BCL only) |
-| `render/` → `PlayersWorlds.Maps.Render` | PNG/Cairo (preview only) | `Mono.Cairo` (Mono-bound) |
-| `maze-gen/` → `mazegen` | CLI (`generate`/`parse`/`run`/`perfrun`/`usecase`) | CommandLineParser; refs src+render+tests |
-| `tests/` | NUnit 4 suite | NUnit/Moq/AltCover/Gendarme |
+| `maze-gen/` → `mazegen` | CLI (`generate`/`parse`/`run`/`perfrun`/`usecase`) | CommandLineParser; refs src+tests |
+| `tests/` | NUnit 4 suite | NUnit/NUnit3TestAdapter/Moq/coverlet |
+
+All SDK-style, `net8.0`. (A Mono/Cairo `render/` PNG-preview project existed on the old `circles` branch; it was dropped — the consuming game owns rendering.)
 
 ## Known sharp edges (before you touch these)
 
@@ -71,13 +89,13 @@ Entry point is the fluent `GeneratedWorld` builder (`src/GeneratedWorld.cs`).
 - 🐞 **`DijkstraDistance.FindLongestTrail` mis-tags** the end marker onto the start cell and the trail onto `startingPoint` (`:144,:146-148`). Affects the "guaranteed start/end spawn points" feature.
 - 🐞 **Auto-distributor crashes for >19 areas** (`MapAreasSystem.s_nicknames`).
 - ❌ **Stubs that throw/no-op**: `GeneratedWorld.WithElevation` (throws), `AddEnvironmentAreas` (no-op).
-- 🐞 **Cairo renderer** hard-codes `antialias.png` output and has an invisible fallback color.
+- 🐞 **CLI `generate` verb crashes** — `GenerateCommand` calls `ConvertMazeBorderToBlock` on a `maze` that `BuildMaze` already block-converted and never attached a builder to, so the converter's `X<Maze2DBuilder>` guard throws. Pre-existing; the unit suite (which attaches the builder) is the source of truth.
 - ⚠️ **Serializer has no escaping** — delimiters (`; , [ ] { }`) inside values corrupt the text format.
 
 Full defect register with severities: `docs/COMPONENT-REVIEW.md §9`.
 
 ## Workflow notes for this repo
 
-- We follow GitHub Flow: commit to a topic branch, never the default. The current working branch is often a feature branch (e.g. `circles`, which is mid-refactor consolidating Border→Block conversion into `MazeAreaStyleConverter` and adding child-area PNG rendering).
+- We follow GitHub Flow: commit to a topic branch, never the default.
 - Never amend commits — if an amend seems needed, stop and report.
 - Original upstream is `aynurin/maze-gen`; this remote is `krmrn42/maze-gen`.

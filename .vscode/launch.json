@@ -1,15 +1,37 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
+    // Debug maze-gen with the C# extension's CoreCLR debugger (F5).
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Attach to Mono",
-            "request": "attach",
-            "type": "mono",
-            "address": "localhost",
-            "port": 55555
+            "name": "Debug maze-gen: run test",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/maze-gen/bin/Debug/net8.0/maze-gen.dll",
+            "args": ["run", "-p", "${input:testPath}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Debug maze-gen: generate",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/maze-gen/bin/Debug/net8.0/maze-gen.dll",
+            "args": ["generate", "-a", "RecursiveBacktracker", "-s", "20x20"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testPath",
+            "type": "promptString",
+            "description": "Fully-qualified test path, e.g. PlayersWorlds.Maps.Maze.Maze2DTest.SomeTest",
+            "default": "PlayersWorlds.Maps.Maze.Maze2DTest"
         }
     ]
 }

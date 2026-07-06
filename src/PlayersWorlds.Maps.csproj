@@ -1,42 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1475F129-1D8B-4631-92ED-30972E539CF2}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>PlayersWorlds.Maps</RootNamespace>
     <AssemblyName>PlayersWorlds.Maps</AssemblyName>
-    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
-    <IntermediateOutputPath>..\build\$(Configuration)\obj\PlayersWorlds.Maps</IntermediateOutputPath>
-    <OutputPath>..\build\$(Configuration)\PlayersWorlds.Maps</OutputPath>
-    <DocumentationFile>..\build\$(Configuration)\PlayersWorlds.Maps\docs.xml</DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <Optimize>true</Optimize>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
-  </PropertyGroup>
-  <PropertyGroup>
+    <Company>Player's Worlds, Inc.</Company>
+    <Product>PlayersWorlds.Maps</Product>
+    <!-- Core library stays BCL-only so it drops cleanly into a Godot (net8.0) project. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="mscorlib" />
+    <!-- Tests reach internal members; keep the API surface narrow (see CLAUDE.md). -->
+    <InternalsVisibleTo Include="PlayersWorlds.Maps.Tests" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="**/*.cs" />
-  </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+
 </Project>

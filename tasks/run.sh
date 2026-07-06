@@ -2,6 +2,4 @@
 
 set -e
 
-msbuild
-
-mono --debug build/Debug/mazegen/maze-gen.exe run "$@"
+dotnet run --project maze-gen -c Debug -- run "$@"

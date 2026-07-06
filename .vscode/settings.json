@@ -1,7 +1,4 @@
 {
-  "dotnet.server.useOmnisharp": true,
-  "omnisharp.useModernNet": false,
-  "omnisharp.enableEditorConfigSupport": true,
   "cSpell.words": [
     "Aldous",
     "Appender",
@@ -9,7 +6,13 @@
     "Broder",
     "BSON",
     "CHTA",
+    "cobertura",
+    "coverlet",
     "docfx",
+    "netcoredbg",
+    "nettrace",
+    "reportgenerator",
+    "speedscope",
     "ELKK",
     "Hermione",
     "HYNA",
