@@ -10,28 +10,31 @@ Full docs: **`docs/PRD.md`** (why/journeys), **`docs/DESIGN.md`** (architecture,
 
 ## Runtime constraint (important)
 
-Targets **.NET Framework 4.7** on purpose — later runtimes are unsupported by Unity. Built with **Mono on Linux** (MSBuild + `packages.config`, non-SDK projects). The core `src` library has **no third-party dependencies** so it drops cleanly into a Unity assets folder. Don't "modernize" to SDK-style projects or newer TFMs without discussing the Unity constraint.
+Targets **.NET 8** — the runtime of the consuming Godot game (`mazzzze`). Built with the **.NET SDK** on Linux (`dotnet build`/`dotnet test`, SDK-style projects, `PackageReference`). The core `src` library stays **BCL-only** (no third-party dependencies) so it drops cleanly into a Godot project. (History: the library previously targeted .NET Framework 4.7 on Mono for Unity; Unity/Mono support was intentionally dropped — see `docs/ROADMAP.md`.)
 
 ## Build / test / run
 
 Tasks live in `tasks/*.sh` and `.vscode/tasks.json`:
 
 ```bash
-./tasks/build.sh                 # nuget restore + msbuild
-./tasks/test.sh --where="Category!=Load AND Category!=Integration"   # fast unit loop (what CI runs)
+./tasks/build.sh                 # dotnet build
+./tasks/test.sh --filter "TestCategory!=Load & TestCategory!=Integration"   # fast unit loop (what CI runs)
 ./tasks/test.sh                  # all tests
-./tasks/test.sh --where="Category=Integration"
-./tasks/test.sh --where="Category=Load"
-./tasks/coverage.sh              # AltCover → Cobertura → ReportGenerator + Gendarme; also flags missing test classes
-./tasks/perf.sh                  # Mono profiler over `mazegen perfrun`
+./tasks/test.sh --filter "TestCategory=Integration"
+./tasks/test.sh --filter "TestCategory=Load"
 ./tasks/flake.sh / deflake.sh    # loop tests to catch/confirm seed-sensitivity
-mono --debug build/Debug/mazegen/maze-gen.exe generate -a RecursiveBacktracker -s 20x20
+dotnet run --project maze-gen -- generate -a RecursiveBacktracker -s 20x20
 ```
 
-Reproduce a failing random test with its printed seed:
+Reproduce a failing random test with its printed seed (NUnit `TestContext` params):
 ```bash
-./tasks/test.sh --test="...FullyQualified.Test(\"case\")" --params SEED=12345
+./tasks/test.sh --filter "FullyQualifiedName~SomeTest" -- 'TestRunParameters.Parameter(name="SEED", value="12345")'
 ```
+
+> `tasks/coverage.sh`, `perf.sh`, and `debugger.sh` are **not yet migrated off Mono**
+> (AltCover/Gendarme, Mono profiler, Mono soft-debugger) and currently do not run —
+> see the note at the top of each. `dotnet run ... generate` also hits a pre-existing
+> CLI double-conversion crash (unrelated to the build; the unit suite is the source of truth).
 
 ## Architecture in one breath
 
