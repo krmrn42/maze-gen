@@ -14,17 +14,21 @@ Targets **.NET 8** — the runtime of the consuming Godot game (`mazzzze`). Buil
 
 ## Build / test / run
 
-Tasks live in `tasks/*.sh` and `.vscode/tasks.json`:
+Everyday commands are in the **`Makefile`** (`make` or `make help` lists them); they wrap `dotnet` and the `tasks/*.sh` scripts (also wired into `.vscode/tasks.json`).
 
 ```bash
-./tasks/build.sh                 # dotnet build
-./tasks/test.sh --filter "TestCategory!=Load & TestCategory!=Integration"   # fast unit loop (what CI runs)
-./tasks/test.sh                  # all tests
-./tasks/test.sh --filter "TestCategory=Integration"
-./tasks/test.sh --filter "TestCategory=Load"
-./tasks/flake.sh / deflake.sh    # loop tests to catch/confirm seed-sensitivity
-dotnet run --project maze-gen -- generate -a RecursiveBacktracker -s 20x20
+make build          # dotnet build
+make test           # fast unit loop (what CI runs)  |  make test-all / test-integration / test-load
+make lint           # dotnet format --verify-no-changes (enforces .editorconfig)
+make format         # auto-format to .editorconfig
+make demo           # render a maze with two rooms as ASCII (CASE=1 SEED=12345) — quick e2e smoke
+make coverage       # -> build/coverage   |  make perf -> build/perf
+make ci             # lint + build + test (CI parity)
 ```
+
+The lower-level scripts still exist for finer control (`./tasks/test.sh --filter …`, `./tasks/flake.sh` / `deflake.sh` to loop tests for seed-sensitivity, etc.).
+
+**Smoke render / e2e check.** `make demo` (== `usecase -c 1 -r <seed>`) composes an Environment with two maze rooms and renders it to ASCII — a fast, visible end-to-end check before a PR. CI runs the same render (fixed seed, deterministic) and posts it to the run/PR **job summary**; a crash there fails the check. (The plain `generate` verb still crashes — see sharp edges — so `demo`/`usecase` is the go-to render.)
 
 Reproduce a failing random test with its printed seed (NUnit `TestContext` params):
 ```bash
