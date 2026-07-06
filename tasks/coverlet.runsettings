@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coverage settings for coverlet (the "XPlat Code Coverage" collector).
+     Mirrors the exclusions the old Mono/AltCover script applied. -->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!-- Measure the core library only. -->
+          <Include>[PlayersWorlds.Maps]*</Include>
+          <!-- Exclude the test/mocking assemblies and a couple of noisy types
+               (force-producer math, exception plumbing) as AltCover did. -->
+          <Exclude>[PlayersWorlds.Maps.Tests]*,[Moq]*,[PlayersWorlds.Maps]*.Areas.Evolving.VectorDistanceForceProducer,[PlayersWorlds.Maps]*.Maze.MazeBuildingException</Exclude>
+          <!-- The renderers are preview/emit helpers, not core geometry. -->
+          <ExcludeByFile>**/renderers/**/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>false</UseSourceLink>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

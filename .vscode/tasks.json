@@ -49,7 +49,7 @@
     {
       "label": "test",
       "type": "shell",
-      "command": "./tasks/test.sh --where=\"Category!=Load AND Category!=Integration\"",
+      "command": "./tasks/test.sh --filter \"TestCategory!=Load & TestCategory!=Integration\"",
       "problemMatcher": [],
       "dependsOn": [
         "build"
@@ -74,7 +74,7 @@
     {
       "label": "integration",
       "type": "shell",
-      "command": "./tasks/test.sh --where=\"Category=Integration\"",
+      "command": "./tasks/test.sh --filter \"TestCategory=Integration\"",
       "problemMatcher": [],
       "dependsOn": [
         "build"
@@ -98,7 +98,7 @@
     {
       "label": "load-test",
       "type": "shell",
-      "command": "./tasks/test.sh --where=\"Category=Load\"",
+      "command": "./tasks/test.sh --filter \"TestCategory=Load\"",
       "problemMatcher": [],
       "dependsOn": [
         "build"
@@ -110,16 +110,7 @@
     {
       "label": "run",
       "type": "shell",
-      "command": "mono --debug build/Debug/mazegen/maze-gen.exe ascii",
-      "problemMatcher": [],
-      "dependsOn": [
-        "build"
-      ]
-    },
-    {
-      "label": "debug",
-      "type": "shell",
-      "command": "mono --debug --debugger-agent=transport=dt_socket,server=y,address=127.0.0.1:55555 build/Debug/mazegen/maze-gen.exe generate",
+      "command": "dotnet run --project maze-gen -c Debug -- generate -a RecursiveBacktracker -s 20x20",
       "problemMatcher": [],
       "dependsOn": [
         "build"

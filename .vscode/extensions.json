@@ -10,7 +10,6 @@
         "aaron-bond.better-comments",
         "bierner.github-markdown-preview",
         "ryanluker.vscode-coverage-gutters",
-        "ms-vscode.mono-debug",
         "boukichi.watch-run"
     ]
 }
