@@ -7,7 +7,7 @@ using PlayersWorlds.Maps.Renderers;
 using static PlayersWorlds.Maps.Maze.Maze2DRenderer;
 
 namespace PlayersWorlds.Maps {
-    [Verb("usecase", HelpText = "Generate a random maze with the specified algorithm and size.")]
+    [Verb("usecase", HelpText = "Render a predefined composed world (e.g. a maze with rooms) by case number.")]
     class UseCaseCommand : BaseCommand {
 
         [Option('c', "case", Default = 1, Required = true, HelpText = "Use case number.")]
@@ -45,13 +45,16 @@ namespace PlayersWorlds.Maps {
                 .ToMap(Maze2DRendererOptions.RectCells(2, 1))
                 .Map(),
             r => new GeneratedWorld(r)
-                .AddLayer(AreaType.Environment, new Vector(32, 29))
+                .AddLayer(AreaType.Maze, new Vector(15, 11))
                 .WithAreas(
-                    Area.Create(new Vector(4, 4), new Vector(10, 15), AreaType.Maze),
-                    Area.Create(new Vector(18, 10), new Vector(10, 15), AreaType.Maze))
-                .OfMaze(MazeStructureStyle.Block)
-                // TODO: Can't use ToMap on a non-maze layer.
-                // .ToMap(Maze2DRendererOptions.SquareCells(1, 1))
+                    Area.Create(new Vector(1, 1), new Vector(4, 3), AreaType.Hall),
+                    Area.Create(new Vector(9, 6), new Vector(4, 4), AreaType.Hall))
+                .OfMaze(MazeStructureStyle.Border, new GeneratorOptions() {
+                                    MazeAlgorithm = GeneratorOptions.Algorithms.RecursiveBacktracker,
+                                    FillFactor = GeneratorOptions.MazeFillFactor.Full,
+                                    AreaGeneration = GeneratorOptions.AreaGenerationMode.Manual
+                                })
+                .ToMap(Maze2DRendererOptions.RectCells(2, 1))
                 .Map(),
             r => new GeneratedWorld(r)
                 .AddLayer(AreaType.Environment, new Vector(80, 25))

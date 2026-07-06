@@ -56,7 +56,7 @@ perf: ## Performance trace of the `perfrun` workload -> build/perf
 	./tasks/perf.sh
 
 .PHONY: demo
-demo: build ## Render a maze with a couple of rooms as ASCII (CASE=1 SEED=12345)
+demo: build ## Render one maze with two rooms as ASCII (CASE=1 SEED=12345)
 	@dotnet run --project maze-gen -c Debug --no-build -- usecase -c $(CASE) -r $(SEED)
 
 .PHONY: clean
