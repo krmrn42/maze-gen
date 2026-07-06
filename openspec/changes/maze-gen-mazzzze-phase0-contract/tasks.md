@@ -21,26 +21,28 @@
 - [x] 3.2 Implement `World.GetOrCreate(address)`: `TryLoad` → hit returns stored region; miss generates (per-address seed via `RandomSource.FromSeed`) + `Save` + returns; synchronous, no streaming
 - [x] 3.3 Wire generation to the existing `GeneratedWorld` pipeline (Block-styled, area-populated, POIs marked as tags)
 - [x] 3.4 Tests: deterministic generation for a fixed seed; stored region is loaded not regenerated (different-seed-shared-store proof); store round-trip preserves cells + POIs; `NullRegionStore` regenerates and persists nothing
-- [ ] 3.5 Measure and document a region-size → generation-latency envelope (P7) so the game knows frame-safe vs. must-thread sizes — measured; documented in `docs/INTEGRATION.md` (see group 5)
+- [x] 3.5 Measure and document a region-size → generation-latency envelope (P7) so the game knows frame-safe vs. must-thread sizes — measured (8²–64²) and documented in `docs/INTEGRATION.md`; ≤16² main-thread-safe, 32²+ thread it
 
 ## 4. mazzzze map-engine rewrite (mazzzze-integration, sibling repo — its own PR)
 
-- [ ] 4.1 Add a `PlayersWorlds.Maps` (net8.0) reference to the `mazzzze` project
-- [ ] 4.2 Add a map-engine node that calls the façade `GetOrCreate` once at startup with a `NullRegionStore` and holds the returned `RegionView`
-- [ ] 4.3 Change `Chunk`/`ChunkManager` to sample cells from the resident `RegionView` (mapped to tiles by cell payload) instead of `MazeData.GetChunkData`/`IsFloor`; keep the load/unload residency ring
-- [ ] 4.4 Derive player spawn from the region entrance POI and the level goal from the exit POI (remove hard-coded `(1,1)`/fixed entrance/exit)
-- [ ] 4.5 Remove `MazeData.IsFloor`, the `0`/`1` encoding, and the fixed 10000×10000 bounds as the map source
-- [ ] 4.6 Smoke-run `mazzzze`: player walks a solvable, room-bearing region with a correct entrance/exit; other game systems (creatures, mechanics) unaffected
+Done on the sibling `mazzzze` repo, branch `integrate-maze-gen-facade`, commit `c911af7` (own PR). Minimal-disruption (D7): `MazeData`'s public surface preserved, internals swapped to the façade, so `ChunkManager`/`Chunk`/`Minimap`/`Player` are untouched.
+
+- [x] 4.1 Add a `PlayersWorlds.Maps` (net8.0) reference to the `mazzzze` project — `ProjectReference` to the sibling `src/` checkout (NuGet/DLL packaging is the CI/release follow-up)
+- [x] 4.2 Add a map-engine node that calls the façade `GetOrCreate` once at startup with a `NullRegionStore` and holds the returned `RegionView` — `MazeData` (now façade-backed) generates one region in `_Ready`
+- [x] 4.3 Change `Chunk`/`ChunkManager` to sample cells from the resident `RegionView` instead of `MazeData.GetChunkData`/`IsFloor`; keep the load/unload residency ring — `IsFloor`/`GetChunkData` now sample the region; the residency ring is unchanged
+- [x] 4.4 Derive player spawn from the region entrance POI and the level goal from the exit POI (remove hard-coded `(1,1)`/fixed entrance/exit) — `PlayerStartCell`/`EntranceCell`/`ExitCell` come from POIs
+- [x] 4.5 Remove `MazeData.IsFloor`, the `0`/`1` encoding, and the fixed 10000×10000 bounds as the map source — the hash is gone; bounds are the region's Block size (the `0`/`1` values remain only as `Chunk.Setup`'s tile ids, i.e. the render contract, not the map source)
+- [ ] 4.6 Smoke-run `mazzzze`: player walks a solvable, room-bearing region with a correct entrance/exit; other game systems unaffected — ⚠️ NOT COMPLETE: the project **compiles** (0 errors) and the region logic is covered by maze-gen tests, but launching the Godot game is a GUI action that needs the user's Godot editor; the in-editor walk-through is pending
 
 ## 5. Living integration guide (integration-guide)
 
-- [ ] 5.1 Add the enforcement rule to `openspec/config.yaml` under `rules.tasks` (and `rules.specs`): a change that alters public API or a scenario's support status MUST update `docs/INTEGRATION.md` and re-mark the affected `docs/SCENARIOS.md` rows
-- [ ] 5.2 Create `docs/INTEGRATION.md` **skeleton**: header (living doc; supersedes `API-FIT.md` for forward guidance), a "status at a glance" table with all 17 `SCENARIOS.md` rows (D1–D6, S1–S7, C1–C5) marked with current status + phase, and the three actor sections with per-scenario placeholders
-- [ ] 5.3 Fill the Phase-0-supported rows enough to be usable (at minimum S1 region-factory and the C-actor consume/render/identity paths reference the façade usage sketch); leave 🔴 rows as "planned — Phase N" stubs
-- [ ] 5.4 Add a one-line pointer to `docs/INTEGRATION.md` from `docs/ROADMAP.md` References (canonical living integration doc), and a memory pointer in `MEMORY.md`
+- [x] 5.1 Add the enforcement rule to `openspec/config.yaml` under `rules.tasks` (and `rules.specs`): a change that alters public API or a scenario's support status MUST update `docs/INTEGRATION.md` and re-mark the affected `docs/SCENARIOS.md` rows
+- [x] 5.2 Create `docs/INTEGRATION.md` **skeleton**: header (living doc; supersedes `API-FIT.md` for forward guidance), a "status at a glance" table with all `SCENARIOS.md` rows (D1–D6, S1–S7, C1–C5) marked with current status + phase, and the three actor sections with per-scenario content
+- [x] 5.3 Fill the Phase-0-supported rows enough to be usable (façade quickstart, S1 region-factory, S3 persistence, C-actor consume/render/identity, latency envelope, mazzzze reference); left 🔴 rows as "planned — Phase N" stubs
+- [x] 5.4 Add a one-line pointer to `docs/INTEGRATION.md` from `docs/ROADMAP.md` References (canonical living integration doc), and a memory pointer in `MEMORY.md`. Also dogfooded the rule: re-marked `SCENARIOS.md` S1 (🔴→✅) and S3 (🟡→✅)
 
 ## 6. Freeze, validate, document
 
-- [ ] 6.1 Run `openspec validate maze-gen-mazzzze-phase0-contract --strict` and `make ci` (lint + build + test) green
-- [ ] 6.2 Update `docs/ROADMAP.md` §3 to mark the Phase-0 contract as defined and frozen at this integration
-- [ ] 6.3 Note the frozen façade surface as the freeze point; record that Phases 1–3 add capability behind it without changing the calls v1 makes
+- [x] 6.1 Run `openspec validate maze-gen-mazzzze-phase0-contract --strict` (valid) and `make ci` (lint + build + 334 tests) green
+- [x] 6.2 Update `docs/ROADMAP.md` §3 to mark the Phase-0 contract as defined and frozen at this integration (Phase 0 ✅ frozen; Phase 1 🚧 largely landed)
+- [x] 6.3 Note the frozen façade surface as the freeze point; record that Phases 1–3 add capability behind it without changing the calls v1 makes (design.md "As-built freeze" + ROADMAP §3)

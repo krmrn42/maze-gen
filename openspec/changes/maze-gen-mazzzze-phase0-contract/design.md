@@ -79,3 +79,14 @@ Correct POIs require fixing `DijkstraDistance.FindLongestTrail` marker mis-taggi
 - Exact `Gate` representation (border edge + open-cell list vs. richer descriptor) — reserve now, refine with the Phase-2 stitch (P3) design.
 - Whether mazzzze v1 should opt into persistence (a real `IRegionStore`) or stay regenerate-at-startup — v1 default is regenerate; persistence is a free later opt-in behind the seam.
 - Region size / dimensionality defaults for mazzzze's single region — gameplay-driven, not a contract concern; `RegionAddress`/`Vector` stays N-D-ready.
+
+## As-built freeze (Phase 0)
+
+The **frozen façade surface** is `PlayersWorlds.Maps.World` (`src/world/`): `World.GetOrCreate(RegionAddress) → RegionView`; value types `RegionAddress`, `RegionCell`, `Poi`/`PoiKind`, `Gate`; the `IRegionStore` seam + `NullRegionStore`. Phases 1–3 add capability *behind* this surface without changing v1's calls.
+
+Refinements the implementation made over the proposal (all validated by grounding a real Block region):
+- **Passability lives in tags, not links.** Block cells carry no links, so `RegionCell` is `{ IsPassable (from the trail tag), Type, Tags }` — the proposal's `links`/`markers` fields were dropped as vestigial.
+- **POIs are baked as serializable cell tags.** `ToMap` discards the Border-maze POI markers, so the factory captures POIs pre-`ToMap` and bridges Border→Block coordinates via `CellsMapping.CenterPosition`, then tags the Block cells (`REGION_ENTRANCE/EXIT/DEADEND`). `RegionView` derives POIs from those tags, so a region is self-describing and its POIs survive persistence with no side-channel.
+- **`IRegionStore` is a blob store.** It persists opaque serialized strings keyed by address; the engine owns the lossless `AreaSerializer` round-trip (not `RegionView` objects). Cleaner for a game's KV/blob store.
+- **Per-address determinism** via a new public `RandomSource.FromSeed(int)`; each region's seed derives from `(worldSeed, address)`.
+- **Per-cell room type flattens to `Environment`** in current Block output; room/cave/corridor typing per cell is deferred behind the same `RegionCell.Type` field.

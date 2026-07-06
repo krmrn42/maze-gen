@@ -38,11 +38,13 @@ flowchart LR
 
 ## 3. Phases
 
-### Phase 0 — Design the engine contract *(design only)*
-**Goal:** define the interface `mazzzze` (and any consumer) codes against, built to outlast the MMO evolution. **Exit criteria:** an approved contract spec covering §6 below. **No integration yet.**
+### Phase 0 — Define the engine contract  ✅ *(defined & frozen)*
+**Goal:** define the interface `mazzzze` (and any consumer) codes against, built to outlast the MMO evolution. **Exit criteria:** an approved contract spec covering §6 below.
+**Done** in OpenSpec change `maze-gen-mazzzze-phase0-contract`. The contract is the **frozen façade surface** `PlayersWorlds.Maps.World`: `World.GetOrCreate(RegionAddress) → RegionView` (Block cells + POIs + gates + stable identity), the `IRegionStore` seam, and the value types `RegionAddress`/`RegionCell`/`Poi`/`Gate`. This is the freeze point — **Phases 1–3 add capability *behind* this surface without changing the calls v1 makes.** Integration guidance is the living [`INTEGRATION.md`](INTEGRATION.md).
 
-### Phase 1 — Referenceable + first integration *(earliest end-to-end)*
+### Phase 1 — Referenceable + first integration *(earliest end-to-end)*  🚧
 **Goal:** `mazzzze` renders a *real* library maze instead of its `IsFloor` hash.
+> **Largely landed with Phase 0** in the same change: the single-region façade + renderable cell data + entrance/exit/dead-end POIs are implemented, the D5 (`Serialize()`) and S6 (longest-path mis-tag) traps are fixed, and `mazzzze`'s `MazeData` is rewired onto the façade (branch `integrate-maze-gen-facade`, compiles). **Remaining:** P5 multi-target/packaging (currently a sibling `ProjectReference`) and the in-editor smoke-run (player walks the region in Godot).
 - **P5** — multi-target the core library `net472;net8.0` so Godot 4 can reference the DLL (the first domino; core already proven to compile on modern .NET).
 - Implement the **minimum** of the contract: generate a single region + return renderable cell data + entrance/exit/dead-end metadata.
 - Integrate: replace `MazeData.IsFloor` with a call into the library behind the contract; `mazzzze`'s existing `ChunkManager` samples the region into its `GridMap` chunks.
@@ -148,7 +150,8 @@ The single interface `mazzzze` codes against, designed to leave room for later p
 ---
 
 ## References
+- **[`docs/INTEGRATION.md`](INTEGRATION.md) — the canonical living integration guide** (always-latest; how to integrate the current API against every `SCENARIOS.md` scenario). Supersedes `API-FIT.md` for forward-looking guidance.
 - PR #40: `https://github.com/krmrn42/maze-gen/pull/40`
-- Docs: `docs/{PRD,DESIGN,COMPONENT-REVIEW,SCENARIOS,API-FIT,ROADMAP}.md`, `CLAUDE.md`
+- Docs: `docs/{PRD,DESIGN,COMPONENT-REVIEW,SCENARIOS,API-FIT,INTEGRATION,ROADMAP}.md`, `CLAUDE.md`
 - Game: `/home/data/repos/github.com/vasiliy-kiryukhin/mazzzze` (Godot 4, net8.0)
 - Validation harness (scratchpad, not committed): net10 probe referencing `src` as `PlayersWorlds.Maps.dll`
