@@ -191,7 +191,7 @@ namespace PlayersWorlds.Maps {
         public GeneratedWorld ToMap(Maze2DRendererOptions options = null) {
             var converter = new MazeAreaStyleConverter();
             CurrentLayer = converter.ConvertMazeBorderToBlock(
-                CurrentLayer, options);
+                CurrentLayer, options: options);
             return this;
         }
 

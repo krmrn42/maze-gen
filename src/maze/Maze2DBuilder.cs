@@ -164,29 +164,8 @@ namespace PlayersWorlds.Maps.Maze {
                 var mazeRendererOptions =
                     options?.MazeRendererOptions ??
                     Maze2DRendererOptions.SquareCells(1, 1);
-                new Maze2DRenderer(mazeLayer, mazeRendererOptions)
-                    .With(new Map2DOutline(new[] { Cell.CellTag.MazeTrail },
-                                           Cell.CellTag.MazeWall,
-                                           mazeRendererOptions.WallCellSize))
-                    .With(new Map2DSmoothCorners(Cell.CellTag.MazeTrail,
-                                                 Cell.CellTag.MazeWallCorner,
-                                                 mazeRendererOptions.WallCellSize))
-                    .With(new Map2DOutline(new[] { Cell.CellTag.MazeTrail,
-                                                   Cell.CellTag.MazeWallCorner },
-                                           Cell.CellTag.MazeWall,
-                                           mazeRendererOptions.WallCellSize))
-                    .With(new Map2DEraseSpots(new[] { Cell.CellTag.MazeVoid },
-                                              includeVoids: true,
-                                              Cell.CellTag.MazeWall,
-                                              maxSpotWidth: 5,
-                                              maxSpotHeight: 5))
-                    .With(new Map2DEraseSpots(new[] { Cell.CellTag.MazeWall,
-                                                      Cell.CellTag.MazeWallCorner },
-                                              includeVoids: false,
-                                              Cell.CellTag.MazeTrail,
-                                              maxSpotWidth: 3,
-                                              maxSpotHeight: 3))
-                    .Render(area);
+                new MazeAreaStyleConverter().ConvertMazeBorderToBlock(
+                    mazeLayer, area, mazeRendererOptions);
             }
 
             return builder;

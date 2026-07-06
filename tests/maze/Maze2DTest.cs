@@ -23,7 +23,7 @@ namespace PlayersWorlds.Maps.Maze {
             maze.X(builder);
             return new MazeAreaStyleConverter()
                     .ConvertMazeBorderToBlock(
-                        maze, options);
+                        maze, options: options);
         }
 
         [Test]

@@ -32,7 +32,7 @@ namespace PlayersWorlds.Maps {
             Console.WriteLine(maze.ToString());
             var converter = new MazeAreaStyleConverter();
             var blockStyle = converter.ConvertMazeBorderToBlock(
-                maze, Maze2DRendererOptions.RectCells(2, 1));
+                maze, options: Maze2DRendererOptions.RectCells(2, 1));
             Console.WriteLine(blockStyle.Render(new AsciiRendererFactory()));
             return 0;
         }
