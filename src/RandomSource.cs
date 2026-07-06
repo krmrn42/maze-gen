@@ -47,6 +47,17 @@ namespace PlayersWorlds.Maps {
         }
 
         /// <summary>
+        /// Creates a new RandomSource with an explicit seed, for deterministic,
+        /// reproducible generation (e.g. per-region seeding in the world
+        /// façade, where each region address derives its own seed).
+        /// </summary>
+        /// <param name="seed">The seed to use for random number generation.
+        /// </param>
+        /// <returns>A new, seeded instance of RandomSource.</returns>
+        public static RandomSource FromSeed(int seed) =>
+            new RandomSource(seed);
+
+        /// <summary>
         /// Logs the usage of the random source and returns the Random instance.
         /// </summary>
         /// <param name="refName">The reference name of the method calling this

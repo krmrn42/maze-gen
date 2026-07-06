@@ -7,21 +7,21 @@
 
 ## 2. Façade contract types (region-facade)
 
-- [ ] 2.1 Add the façade namespace in `src` (one DLL, core stays BCL-only); decide final namespace name
-- [ ] 2.2 Define `RegionAddress` (a `Vector`, N-D-ready) and `ToWorld`/`FromWorld` identity helpers with round-trip tests, accounting for Block expansion (N maze cells → ~2N+1 world cells)
-- [ ] 2.3 Define `RegionCell` value type: passability (wall/floor), `AreaType`, block tags, links, markers — no `Area`/`Cell` object exposed
-- [ ] 2.4 Define `RegionView`: read-only Block cell accessor + `RegionAddress` + `Size`, backed by a baked Block region; ensure isolation (use `Cell.Clone()`/serialize round-trip, never aliased `ShallowCopy`)
-- [ ] 2.5 Define POIs on `RegionView`: entrance/exit pair (from the fixed longest-path) and dead-ends (from `DeadEndsExtension`)
-- [ ] 2.6 Define `Gate` (border edge + open cells along it) and `RegionView.Gates`; surface gates a region has (gate-aware *generation* deferred to Phase 2)
-- [ ] 2.7 Add a contract test asserting no `Area`/`Cell`/`ExtensibleObject`/child-area reference is reachable through the façade's public surface
+- [x] 2.1 Add the façade namespace in `src` (one DLL, core stays BCL-only); decide final namespace name — `PlayersWorlds.Maps.World` under `src/world/`
+- [x] 2.2 Define `RegionAddress` (a `Vector`, N-D-ready) and `ToWorld`/`FromWorld` identity helpers with round-trip tests, accounting for Block expansion (N maze cells → ~2N+1 world cells). Note: `ToWorld`/`FromWorld` operate in the actual Block size (read from `RegionView.Size`), so expansion is handled by using the real rendered size rather than assuming 2N+1
+- [x] 2.3 Define `RegionCell` value type: passability (wall/floor from the trail tag), `AreaType`, block tags — no `Area`/`Cell` object exposed. Note: dropped `links` and `markers` — grounding showed Block cells carry no links, and POIs are surfaced at region level via `RegionView.Pois`
+- [x] 2.4 Define `RegionView`: read-only Block cell accessor + `RegionAddress` + `Size`, backed by a baked Block region; isolation via factory-owned/deserialized `Area` (never aliased `ShallowCopy`)
+- [x] 2.5 Define POIs on `RegionView`: entrance/exit pair (from the fixed longest-path) and dead-ends (from `DeadEndsExtension`), bridged from Border→Block coords and baked as serializable cell tags so they survive persistence
+- [x] 2.6 Define `Gate` (border edge + open cells along it) and `RegionView.Gates`; surface gates a region has (gate-aware *generation* deferred to Phase 2)
+- [x] 2.7 Add a contract test asserting no `Area`/`Cell`/`ExtensibleObject`/child-area reference is reachable through the façade's public surface (reflection over the `PlayersWorlds.Maps.World` public surface)
 
 ## 3. Region factory + persistence seam (region-facade)
 
-- [ ] 3.1 Define `IRegionStore { TryLoad(address, out region); Save(address, region); }` and a `NullRegionStore` (always-miss, never-save)
-- [ ] 3.2 Implement `World.GetOrCreate(address)`: `TryLoad` → hit returns stored region; miss generates (own seed) + `Save` + returns; synchronous, no streaming
-- [ ] 3.3 Wire generation to the existing `GeneratedWorld` pipeline (Block-styled, area-populated, POIs marked)
-- [ ] 3.4 Tests: deterministic generation for a fixed seed; stored region is loaded not regenerated; store round-trip preserves cells; `NullRegionStore` regenerates and persists nothing
-- [ ] 3.5 Measure and document a region-size → generation-latency envelope (P7) so the game knows frame-safe vs. must-thread sizes
+- [x] 3.1 Define `IRegionStore { TryLoad(address, out serialized); Save(address, serialized); }` and a `NullRegionStore` (always-miss, never-save). Note: the store persists opaque serialized blobs keyed by address (the engine owns lossless `AreaSerializer` (de)serialization), rather than dealing in `RegionView` — cleaner for a game's blob store
+- [x] 3.2 Implement `World.GetOrCreate(address)`: `TryLoad` → hit returns stored region; miss generates (per-address seed via `RandomSource.FromSeed`) + `Save` + returns; synchronous, no streaming
+- [x] 3.3 Wire generation to the existing `GeneratedWorld` pipeline (Block-styled, area-populated, POIs marked as tags)
+- [x] 3.4 Tests: deterministic generation for a fixed seed; stored region is loaded not regenerated (different-seed-shared-store proof); store round-trip preserves cells + POIs; `NullRegionStore` regenerates and persists nothing
+- [ ] 3.5 Measure and document a region-size → generation-latency envelope (P7) so the game knows frame-safe vs. must-thread sizes — measured; documented in `docs/INTEGRATION.md` (see group 5)
 
 ## 4. mazzzze map-engine rewrite (mazzzze-integration, sibling repo — its own PR)
 
