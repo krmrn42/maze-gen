@@ -2,6 +2,4 @@
 
 set -e
 
-nuget restore
-
-msbuild
+dotnet build maze-gen.sln -c Debug

@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# NOT YET MIGRATED off Mono. This script still uses AltCover/ReportGenerator/
+# Gendarme via `mono` and the old packages.config layout, which no longer exist
+# after the net8.0 migration. Rework needed: `dotnet test --collect:"XPlat Code
+# Coverage"` (coverlet) + ReportGenerator as a dotnet tool. See CLAUDE.md.
+
 set -e
 
 AltCover="$(realpath ./packages/altcover.8.8.74/tools/net472/AltCover.exe)"

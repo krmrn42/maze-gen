@@ -2,7 +2,7 @@ name: Generate Code Docs
 
 on:
   workflow_run:
-    workflows: ["Build and Test .NET on Mono"]
+    workflows: ["Build and Test .NET"]
     branches: [main]
     types:
       - completed # Trigger the workflow when the build completes successfully

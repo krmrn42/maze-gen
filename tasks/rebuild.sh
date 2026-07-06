@@ -2,7 +2,5 @@
 
 set -e
 
-rm -rf build
-rm -rf packages
-nuget restore
-msbuild
+"$(dirname "$0")/clean.sh"
+dotnet build maze-gen.sln -c Debug
