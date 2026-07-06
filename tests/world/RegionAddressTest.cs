@@ -68,6 +68,9 @@ namespace PlayersWorlds.Maps.World {
             Assert.That(a != c, Is.True);
             Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
             Assert.That(a.ToString(), Does.Contain("1x2"));
+            // Equals(object) against a non-address is false, not a throw.
+            Assert.That(a.Equals("not an address"), Is.False);
+            Assert.That(a.Equals(null), Is.False);
         }
 
         [Test]
