@@ -1,5 +1,10 @@
 # PlayersWorlds.Maps
 
+[![NuGet](https://img.shields.io/nuget/v/PlayersWorlds.Maps.svg?logo=nuget)](https://www.nuget.org/packages/PlayersWorlds.Maps/)
+[![NuGet prerelease](https://img.shields.io/nuget/vpre/PlayersWorlds.Maps.svg?label=nuget%20pre&color=orange)](https://www.nuget.org/packages/PlayersWorlds.Maps/absoluteLatest)
+[![Build](https://github.com/krmrn42/maze-gen/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/krmrn42/maze-gen/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A procedural **maze / dungeon map-generation** library — corridors, rooms, halls,
 caves, and impassable zones for 2D/3D games. It generates the *backbone* of a map;
 the consuming game supplies gameplay, loot, mobs, and the visual layer.

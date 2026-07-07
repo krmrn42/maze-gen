@@ -1,14 +1,18 @@
 name: Publish to NuGet
 
-# Publishes PlayersWorlds.Maps to nuget.org on a version tag (vX.Y.Z).
-# Create the tag with `make release-minor` / `-patch` / `-major`.
+# Publishes PlayersWorlds.Maps to nuget.org:
+#   - a STABLE version on a vX.Y.Z tag   (cut with `make release-minor` etc.)
+#   - a PRERELEASE on every push to main (X.(Y+1).0-preview.<run>), so
+#     consumers can opt into the bleeding edge with `--prerelease`.
 #
-# Auth is NuGet Trusted Publishing (OIDC) — no stored API key. A trusted
-# publisher policy on nuget.org must be bound to THIS repo, the `publish.yml`
+# Auth is NuGet Trusted Publishing (OIDC) — no stored API key. The trusted
+# publisher policy on nuget.org is bound to THIS repo, the `publish.yml`
 # workflow, and the `production` environment; the account username is the
-# `NUGET_USER` repository variable.
+# `NUGET_USER` repository variable. Both paths reuse that one policy.
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -22,21 +26,33 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need tags to compute the prerelease base version
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Derive and validate version from tag
-        # GITHUB_REF_NAME is the tag (vX.Y.Z). Validate it is real semver before
-        # it flows into build args (defense-in-depth against a malformed tag).
+      - name: Derive version
+        # Tag push -> the tag's version (validated). Main push -> a prerelease
+        # of the next minor above the latest stable tag, made monotonic by the
+        # run number: e.g. latest v0.1.0 -> 0.2.0-preview.<run>.
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-            echo "Tag '${GITHUB_REF_NAME}' is not a valid vX.Y.Z version." >&2
-            exit 1
+          if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            version="${GITHUB_REF_NAME#v}"
+            if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+              echo "Tag '${GITHUB_REF_NAME}' is not a valid vX.Y.Z version." >&2
+              exit 1
+            fi
+          else
+            git fetch --tags --force >/dev/null 2>&1 || true
+            latest="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+            latest="${latest:-v0.0.0}"
+            ver="${latest#v}"; major="${ver%%.*}"; rest="${ver#*.}"; minor="${rest%%.*}"
+            version="${major}.$((minor + 1)).0-preview.${GITHUB_RUN_NUMBER}"
           fi
+          echo "Publishing version $version"
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Restore
