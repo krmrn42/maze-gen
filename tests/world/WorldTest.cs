@@ -156,6 +156,21 @@ namespace PlayersWorlds.Maps.World {
         }
 
         [Test]
+        public void SmallRooms_AreStillVisible_NotCollapsedToCorridors() {
+            // A 3-world-cell room must render as a real (2x2-open-bearing) room,
+            // not vanish into a single corridor cell.
+            var size = new Vector(21, 21);
+            var maze = new World(new NullRegionStore(), 4, size)
+                .GetOrCreate(Origin, RegionRecipe.Maze);
+            var withSmallRooms = new World(new NullRegionStore(), 4, size)
+                .GetOrCreate(Origin, RegionRecipe.Maze.WithRooms(
+                    3, new Vector(3, 3), new Vector(3, 3), RoomKind.Hall));
+            Assert.That(OpenSquares(maze), Is.EqualTo(0));
+            Assert.That(OpenSquares(withSmallRooms), Is.GreaterThan(0),
+                "3x3 rooms must be visible open space");
+        }
+
+        [Test]
         public void AllRoomKinds_GenerateAValidRegion() {
             var size = new Vector(41, 41);
             foreach (var kind in new[] {

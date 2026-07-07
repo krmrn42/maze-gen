@@ -173,13 +173,17 @@ namespace PlayersWorlds.Maps.World {
         };
 
         // Rooms are sized in world (Block) cells; snap each dimension to the
-        // maze grid (one maze cell renders to cell + wall Block cells).
+        // maze grid. A hall of N maze cells renders to ~N*(cell+wall) - wall
+        // world cells, so invert that: N ≈ (worldSize + wall) / (cell + wall).
+        // (Plain worldSize/pitch under-sizes — a 3-world-cell room would become
+        // a single maze cell, i.e. an invisible corridor cell.)
         private static Vector ToMazeCells(Vector worldSize, Vector cellSize,
                                           Vector wallSize) {
             var cells = new int[worldSize.Dimensions];
             for (var i = 0; i < worldSize.Dimensions; i++) {
                 var pitch = cellSize.Value[i] + wallSize.Value[i];
-                cells[i] = Math.Max(1, worldSize.Value[i] / pitch);
+                cells[i] = Math.Max(1,
+                    (worldSize.Value[i] + wallSize.Value[i]) / pitch);
             }
             return new Vector(cells);
         }

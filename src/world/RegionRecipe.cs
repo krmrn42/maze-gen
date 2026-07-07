@@ -97,9 +97,16 @@ namespace PlayersWorlds.Maps.World {
         /// Returns a copy that also auto-places <paramref name="count"/> rooms
         /// of <paramref name="kind"/>, each sized between
         /// <paramref name="minSize"/> and <paramref name="maxSize"/> (in world
-        /// Block cells), tagged with <paramref name="tags"/>. Call it more than
-        /// once to mix kinds. Rooms are placed best-effort without overlapping.
+        /// Block cells — the same unit as <c>regionSize</c>), tagged with
+        /// <paramref name="tags"/>. Call it more than once to mix kinds. Rooms
+        /// are placed best-effort without overlapping.
         /// </summary>
+        /// <remarks>
+        /// Rooms snap to the underlying maze grid (pitch = cell + wall, i.e. 2
+        /// world cells for square 1×1 cells), so a room smaller than ~3 world
+        /// cells collapses to a single corridor cell and is not visible as a
+        /// room. Use ≥3 (and a footprint with room to place them).
+        /// </remarks>
         /// <param name="count">How many rooms of this kind to place.</param>
         /// <param name="minSize">Minimum room size, in world cells.</param>
         /// <param name="maxSize">Maximum room size, in world cells.</param>
