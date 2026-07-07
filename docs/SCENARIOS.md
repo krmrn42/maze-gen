@@ -62,12 +62,12 @@ The three actors:
 
 ## Actor 2 — Game server (authoritative, persistent, on demand)
 
-### S1 — Generate a new region on first visit  🔴
+### S1 — Generate a new region on first visit  ✅
 
 **Trigger:** A player reaches an un-generated region at coordinate `(X, Y)`.
 **Wants:** Generate a fresh region *once*, with its own seed, and hand it back to be **persisted** under that coordinate address; every later visitor loads the stored copy. The map is authored-by-generation and stored — **not** a deterministic function of coordinates.
-**Interaction (today):** the pipeline generates an `Area`, but there is no coordinate-addressed region factory and no persistence hook.
-**Support:** 🔴 — see [API-FIT: S1](API-FIT.md#s1).
+**Interaction:** `World.GetOrCreate(RegionAddress)` (Phase 0) generates a region once with a per-address seed, saves it via the game's `IRegionStore`, and returns a `RegionView`; a later visit loads the stored copy.
+**Support:** ✅ — Phase 0 region façade — see [INTEGRATION: S1](INTEGRATION.md#s1--generate-a-new-region-on-first-visit-).
 
 ### S2 — Connect a new region to its existing neighbors (seam-stitching)  🔴  *(core)*
 
@@ -76,12 +76,12 @@ The three actors:
 **Interaction (today):** fixed-position `Area.Create` areas and the distributor's "don't disturb fixed areas" rule are primitives, but there is no seam/border-connection API.
 **Support:** 🔴 — the load-bearing MMO capability — see [API-FIT: S2](API-FIT.md#s2).
 
-### S3 — Persist a region and retrieve it later  🟡
+### S3 — Persist a region and retrieve it later  ✅
 
 **Trigger:** A region was generated (visited) and must be stored centrally and re-served.
 **Wants:** Save a region under a key and load it back on demand.
-**Interaction:** `AreaSerializer` gives lossless text; there is no store, region keying, or partial-load layer.
-**Support:** 🟡 — serialization exists, persistence does not — see [API-FIT: S3](API-FIT.md#s3).
+**Interaction:** The `IRegionStore` seam (Phase 0) keys regions by `RegionAddress`; the engine serializes/deserializes losslessly via `AreaSerializer`, so the game implements a plain blob store. On a hit `GetOrCreate` reloads the stored region (cells + POIs survive as serialized tags).
+**Support:** ✅ — Phase 0 persistence seam — see [INTEGRATION: S3](INTEGRATION.md#s3--persist-a-region-and-retrieve-it-later-). Partial-load / streaming remains later-phase.
 
 ### S4 — Consistent world across instances via persistence  🟡
 

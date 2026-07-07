@@ -65,3 +65,19 @@ clean: ## Remove build outputs
 
 .PHONY: ci
 ci: lint build test demo ## What CI runs: lint + build + unit tests + smoke render
+
+.PHONY: pack
+pack: ## Build the NuGet package locally -> build/nupkg (dev version 0.0.0)
+	dotnet pack src/PlayersWorlds.Maps.csproj -c Release -o build/nupkg
+
+.PHONY: release-patch
+release-patch: ## Tag a patch release (x.y.Z+1); CI publishes to NuGet
+	./tasks/release.sh patch
+
+.PHONY: release-minor
+release-minor: ## Tag a minor release (x.Y+1.0); CI publishes to NuGet
+	./tasks/release.sh minor
+
+.PHONY: release-major
+release-major: ## Tag a major release (X+1.0.0); CI publishes to NuGet
+	./tasks/release.sh major

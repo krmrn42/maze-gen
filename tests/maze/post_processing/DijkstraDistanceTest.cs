@@ -53,6 +53,27 @@ namespace PlayersWorlds.Maps.Maze.PostProcessing {
                 cell => cell.X<DijkstraDistance.IsLongestTrailStartExtension>() != null), Is.EqualTo(1));
             Assert.That(maze.Count(
                 cell => cell.X<DijkstraDistance.IsLongestTrailEndExtension>() != null), Is.EqualTo(1));
+            // S6 regression guard: the start and the end must be two DISTINCT
+            // cells. The original defect tagged the end marker onto the start
+            // cell, so a single cell carried both markers while the per-cell
+            // counts above still read 1/1. Assert no cell holds both.
+            Assert.That(maze.Count(cell =>
+                cell.X<DijkstraDistance.IsLongestTrailStartExtension>() != null &&
+                cell.X<DijkstraDistance.IsLongestTrailEndExtension>() != null),
+                Is.EqualTo(0));
+            // S6 regression guard: every cell on the trail is tagged, not just
+            // the start cell (the defect wrote IsLongestTrailExtension onto
+            // startingPoint solution.Count times, tagging exactly one cell).
+            Assert.That(maze.Count(
+                cell => cell.X<DijkstraDistance.IsLongestTrailExtension>() != null),
+                Is.EqualTo(solution.LongestTrail.Count));
+            // Both endpoints lie on the tagged trail.
+            Assert.That(maze.Count(cell =>
+                cell.X<DijkstraDistance.IsLongestTrailStartExtension>() != null &&
+                cell.X<DijkstraDistance.IsLongestTrailExtension>() != null), Is.EqualTo(1));
+            Assert.That(maze.Count(cell =>
+                cell.X<DijkstraDistance.IsLongestTrailEndExtension>() != null &&
+                cell.X<DijkstraDistance.IsLongestTrailExtension>() != null), Is.EqualTo(1));
             // perhaps the caller of FindLongestTrail will add it as maze extension?..
             Assert.That(maze.Count(
                 cell => cell.X<DijkstraDistance.LongestTrailExtension>() != null), Is.EqualTo(0));

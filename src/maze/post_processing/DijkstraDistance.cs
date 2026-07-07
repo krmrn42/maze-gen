@@ -141,10 +141,10 @@ namespace PlayersWorlds.Maps.Maze.PostProcessing {
             distances = Find(maze, startingPoint);
             var targetPoint = distances.OrderByDescending(kvp => kvp.Value)
                                        .Select(kvp => kvp.Key).First();
-            maze[startingPoint].X(new IsLongestTrailEndExtension());
+            maze[targetPoint].X(new IsLongestTrailEndExtension());
             var solution = Solve(maze, startingPoint, targetPoint).Value;
             foreach (var cell in solution) {
-                maze[startingPoint].X(new IsLongestTrailExtension());
+                maze[cell].X(new IsLongestTrailExtension());
             }
             return new LongestTrailExtension(solution);
         }
