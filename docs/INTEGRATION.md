@@ -45,6 +45,16 @@ automatically and everyone else falls back to the package:
 Releases are cut with `make release-minor` (or `-patch`/`-major`), which tags
 `vX.Y.Z`; CI publishes that version to NuGet via OIDC trusted publishing.
 
+**Prerelease channel.** Every merge to `main` also publishes a prerelease
+(`X.(Y+1).0-preview.<n>`) so you can track the bleeding edge. Opt in with a
+floating prerelease version or `--prerelease`:
+
+```xml
+<PackageReference Include="PlayersWorlds.Maps" Version="0.2.0-preview.*" />
+```
+
+Stable restores never pick up a prerelease unless you ask for one.
+
 ## The contract in one breath
 
 A game codes against one narrow, frozen surface — the **region façade**
