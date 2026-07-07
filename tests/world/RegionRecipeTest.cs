@@ -49,5 +49,36 @@ namespace PlayersWorlds.Maps.World {
             Assert.That(recipe.CellSize, Is.EqualTo(new Vector(3, 1)));
             Assert.That(recipe.WallSize, Is.EqualTo(new Vector(1, 1)));
         }
+
+        [Test]
+        public void WithRooms_AccumulatesRequests_Immutably() {
+            var basic = RegionRecipe.Maze;
+            var withRooms = basic.WithRooms(3, new Vector(4, 4),
+                new Vector(6, 6), RoomKind.Hall, "armory");
+            Assert.That(basic.Rooms, Is.Empty);              // original untouched
+            Assert.That(withRooms.Rooms.Count, Is.EqualTo(1));
+            Assert.That(withRooms.Rooms[0].Kind, Is.EqualTo(RoomKind.Hall));
+            Assert.That(withRooms.Rooms[0].Count, Is.EqualTo(3));
+            Assert.That(withRooms.Rooms[0].Tags, Does.Contain("armory"));
+
+            var two = withRooms.WithRooms(2, new Vector(3, 3),
+                new Vector(3, 3), RoomKind.Cave);
+            Assert.That(two.Rooms.Count, Is.EqualTo(2));     // mixed kinds
+        }
+
+        [Test]
+        public void RoomPresets_HaveRooms_PlainOnesDoNot() {
+            Assert.That(RegionRecipe.Dungeon.Rooms, Is.Not.Empty);
+            Assert.That(RegionRecipe.Caverns.Rooms, Is.Not.Empty);
+            Assert.That(RegionRecipe.Maze.Rooms, Is.Empty);
+            Assert.That(RegionRecipe.Corridors.Rooms, Is.Empty);
+        }
+
+        [Test]
+        public void WithRooms_RejectsNegativeCount() {
+            Assert.That(() => RegionRecipe.Maze.WithRooms(
+                    -1, new Vector(2, 2), new Vector(3, 3)),
+                Throws.InstanceOf<System.ArgumentOutOfRangeException>());
+        }
     }
 }

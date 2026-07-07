@@ -55,4 +55,5 @@ Done on the sibling `mazzzze` repo, branch `integrate-maze-gen-facade`, commit `
 - [x] 7.4 Tests: footprint honored exactly (incl. non-square) + too-small throws; per-region recipe changes content; recipe ignored when stored; algorithm/recipe immutability; contract test still forbids renderer types
 - [x] 7.5 Update `docs/INTEGRATION.md` quickstart (footprint `regionSize`, per-region recipe, algorithm selection) and `design.md` (D9/D10) + spec
 - [x] 7.6 Update mazzzze `MazeData` to the new API (footprint `regionSize`, explicit `RegionRecipe`)
-- [ ] 7.7 **NOT STARTED (next slice):** room support — `RoomKind` enum + open tags, `WithRooms`/`AddRoom`, `Dungeon`/`Caverns` presets, mapping to `WithAreas`
+- [x] 7.7 Room generation: `RoomKind` (Hall/Cave/Blocked = all room-capable area types) + open tags, `RegionRecipe.WithRooms(count, min, max, kind, tags)`, `Dungeon`/`Caverns` presets, mapped to `WithAreas` in Manual mode (sidesteps the >19-area crash); sizes in world cells snapped to the maze grid; fixed the `BasicAreaGenerator` empty-tags crash; tests (rooms open 2×2 space a maze lacks, all kinds valid). Wired into mazzzze (AldousBroder + Hall rooms)
+- [ ] 7.8 **NOT STARTED (next slice):** room *metadata* on `RegionView` (per-room kind/tags/bounds, baked into the Block area so it survives persistence like POIs) and explicit `AddRoom(position, …)` placement

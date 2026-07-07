@@ -98,10 +98,10 @@ The generator was baked (`RecursiveBacktracker`, `Full`). It is now a client set
 
 Each configuration axis gets the openness that fits it — the crux of "simple *and* flexible":
 - **Algorithm** — finite blessed set, occasionally extended → **`RegionAlgorithm`**: discoverable static built-ins (the six generators) plus a `Custom<T>() where T : MazeGenerator` escape hatch. `MazeGenerator` is the engine's intended SPI, so `Custom` leaks nothing internal; the contract test still forbids renderer types.
-- **Room structure** (Phase 0.2) — small & stable → a closed `RoomKind` enum.
+- **Room structure** — small & stable → a closed `RoomKind` enum (`Hall`, `Cave`, `Blocked` = maze `Hall`/`Cave`/`Fill`, every room-capable area type).
 - **Room semantics** — unbounded, grows forever → open **string tags**, never an enum.
 
-Presets encode algorithm affinity so a caller names intent, not mechanism; because algorithms are interchangeable, any preset accepts `.WithAlgorithm(...)`. *Room support (`Dungeon`/`Caverns` presets + `WithRooms`) is deferred to a follow-up slice, added behind this same `RegionRecipe` type non-breakingly.*
+Presets encode algorithm affinity so a caller names intent, not mechanism; because algorithms are interchangeable, any preset accepts `.WithAlgorithm(...)`. Rooms are auto-placed via `WithRooms(count, min, max, kind, tags)` (sizes in world cells, snapped to the maze grid); presets `Dungeon` (halls) and `Caverns` (caves) build on it. This surfaced and fixed a core bug — `BasicAreaGenerator` crashed when no tags were supplied (`RandomOf` on an empty list). *Deferred to the next slice: **room metadata on `RegionView`** (where each room is + its kind/tags), which needs rooms baked into the serializable Block area so a reloaded region stays self-describing — the same pattern POIs use. Explicit `AddRoom(position, …)` placement is also deferred. Rooms currently affect geometry (walkable halls/caves, impassable blocks); a game reads them as passability today.*
 
 ## D10 — World vs region lifecycle; `regionSize` is the world footprint
 

@@ -79,7 +79,6 @@ namespace PlayersWorlds.Maps.Areas {
 
         private Area CreateRandomArea(ICollection<Area> generatedAreas) {
             var type = _randomSource.RandomOf(_areaTypes);
-            var tag = _randomSource.RandomOf(_tags);
             Area area;
             var size = new Vector(
                 _randomSource.Next(_minSize.X, _maxSize.X),
@@ -87,7 +86,10 @@ namespace PlayersWorlds.Maps.Areas {
             var pos = new Vector(
                 _randomSource.Next(0, _targetArea.Size.X - size.X),
                 _randomSource.Next(0, _targetArea.Size.Y - size.Y));
-            area = Area.Create(pos, size, type, tag);
+            // Tags are optional; only assign one when the caller supplied some.
+            area = _tags.Length == 0
+                ? Area.Create(pos, size, type)
+                : Area.Create(pos, size, type, _randomSource.RandomOf(_tags));
             if (IsAValidLayout(generatedAreas, area)) {
                 return area;
             }

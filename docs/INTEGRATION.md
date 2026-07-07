@@ -87,6 +87,15 @@ RegionView caves  = world.GetOrCreate(new RegionAddress(new Vector(1, 0)),
         .WithCells(1));                              // square cells (the default)
 // Custom algorithm: RegionAlgorithm.Custom<MyGenerator>() (T : MazeGenerator).
 
+// Rooms: presets Dungeon (halls) and Caverns (caves), or add your own.
+// RoomKind.Hall / Cave (walkable) and Blocked (impassable rock/water). Sizes
+// are in world cells; "types" of room are open-ended tags, not an enum.
+RegionView dungeon = world.GetOrCreate(new RegionAddress(new Vector(2, 0)),
+    RegionRecipe.Maze
+        .WithRooms(6, minSize: new Vector(6, 6), maxSize: new Vector(10, 10),
+                   kind: RoomKind.Hall, tags: "armory")
+        .WithRooms(3, new Vector(4, 4), new Vector(6, 6), RoomKind.Blocked));
+
 // 3. Read cells by region-local (Block) coordinate. Passability drives tiles.
 for (var y = 0; y < region.Size.Y; y++) {
     for (var x = 0; x < region.Size.X; x++) {

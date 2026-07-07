@@ -124,6 +124,70 @@ namespace PlayersWorlds.Maps.World {
                 Is.EqualTo(Signature(explicitCorridors)));
         }
 
+        // Counts 2x2 fully-passable blocks. A 1-wide maze has none (every open
+        // cell is bordered by walls/corners); a room creates them.
+        private static int OpenSquares(RegionView r) {
+            var count = 0;
+            for (var y = 0; y + 1 < r.Size.Y; y++) {
+                for (var x = 0; x + 1 < r.Size.X; x++) {
+                    if (r.CellAt(new Vector(x, y)).IsPassable &&
+                        r.CellAt(new Vector(x + 1, y)).IsPassable &&
+                        r.CellAt(new Vector(x, y + 1)).IsPassable &&
+                        r.CellAt(new Vector(x + 1, y + 1)).IsPassable) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        [Test]
+        public void Rooms_OpenUpSpace_ThatAPlainMazeLacks() {
+            // Big enough footprint to hold the Dungeon preset's rooms.
+            var size = new Vector(41, 41);
+            var maze = new World(new NullRegionStore(), 7, size)
+                .GetOrCreate(Origin, RegionRecipe.Maze);
+            var dungeon = new World(new NullRegionStore(), 7, size)
+                .GetOrCreate(Origin, RegionRecipe.Dungeon);
+            Assert.That(OpenSquares(maze), Is.EqualTo(0),
+                "a 1-wide maze has no 2x2 open blocks");
+            Assert.That(OpenSquares(dungeon), Is.GreaterThan(0),
+                "halls create open blocks");
+        }
+
+        [Test]
+        public void AllRoomKinds_GenerateAValidRegion() {
+            var size = new Vector(41, 41);
+            foreach (var kind in new[] {
+                         RoomKind.Hall, RoomKind.Cave, RoomKind.Blocked }) {
+                var region = new World(new NullRegionStore(), 3, size)
+                    .GetOrCreate(Origin, RegionRecipe.Maze.WithRooms(
+                        4, new Vector(6, 6), new Vector(8, 8), kind));
+                var entrance = region.Pois.Single(p => p.Kind == PoiKind.Entrance);
+                var exit = region.Pois.Single(p => p.Kind == PoiKind.Exit);
+                Assert.That(entrance.Local, Is.Not.EqualTo(exit.Local),
+                    $"{kind} region must have distinct entrance/exit");
+            }
+        }
+
+        [Test]
+        public void CavernsPreset_OpensSpace() {
+            var size = new Vector(41, 41);
+            var caverns = new World(new NullRegionStore(), 9, size)
+                .GetOrCreate(Origin, RegionRecipe.Caverns);
+            Assert.That(OpenSquares(caverns), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void FillDensity_GeneratesAcrossTheRange() {
+            var size = new Vector(21, 21);
+            foreach (var fill in new[] { 0.25, 0.5, 0.75, 0.9 }) {
+                var region = new World(new NullRegionStore(), 7, size)
+                    .GetOrCreate(Origin, RegionRecipe.Maze.WithFill(fill));
+                Assert.That(region.Size, Is.EqualTo(size));
+            }
+        }
+
         [Test]
         public void GetOrCreate_GeneratesOnMiss_ThenLoadsOnHit() {
             var store = new InMemoryRegionStore();

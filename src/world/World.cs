@@ -98,9 +98,23 @@ namespace PlayersWorlds.Maps.World {
                 RandomSource = randomSource,
                 MazeAlgorithm = recipe.Algorithm.GeneratorType,
                 FillFactor = MapFill(recipe.Fill),
+                // We place rooms ourselves (below), so the builder carves around
+                // the existing areas rather than distributing its own.
+                AreaGeneration = GeneratorOptions.AreaGenerationMode.Manual,
             };
-            var builder = new GeneratedWorld(randomSource)
-                .AddLayer(AreaType.Maze, mazeCells)
+            var builder =
+                new GeneratedWorld(randomSource).AddLayer(AreaType.Maze, mazeCells);
+            foreach (var room in recipe.Rooms) {
+                var min = ClampToGrid(
+                    ToMazeCells(room.MinSize, recipe.CellSize, recipe.WallSize),
+                    mazeCells);
+                var max = ClampToGrid(
+                    ToMazeCells(room.MaxSize, recipe.CellSize, recipe.WallSize),
+                    mazeCells);
+                builder = builder.WithAreas(new[] { AreaTypeOf(room.Kind) },
+                    room.Tags, room.Count, min, max);
+            }
+            builder = builder
                 .OfMaze(MazeStructureStyle.Border, options)
                 .MarkLongestPath()
                 .MarkDeadends();
@@ -149,6 +163,35 @@ namespace PlayersWorlds.Maps.World {
                 cells[i] = n;
             }
             return new Vector(cells);
+        }
+
+        private static AreaType AreaTypeOf(RoomKind kind) => kind switch {
+            RoomKind.Hall => AreaType.Hall,
+            RoomKind.Cave => AreaType.Cave,
+            RoomKind.Blocked => AreaType.Fill,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+
+        // Rooms are sized in world (Block) cells; snap each dimension to the
+        // maze grid (one maze cell renders to cell + wall Block cells).
+        private static Vector ToMazeCells(Vector worldSize, Vector cellSize,
+                                          Vector wallSize) {
+            var cells = new int[worldSize.Dimensions];
+            for (var i = 0; i < worldSize.Dimensions; i++) {
+                var pitch = cellSize.Value[i] + wallSize.Value[i];
+                cells[i] = Math.Max(1, worldSize.Value[i] / pitch);
+            }
+            return new Vector(cells);
+        }
+
+        // Keeps a room's maze-cell size within the maze grid so the distributor
+        // never gets an empty placement range for an oversized room.
+        private static Vector ClampToGrid(Vector size, Vector mazeCells) {
+            var clamped = new int[size.Dimensions];
+            for (var i = 0; i < size.Dimensions; i++) {
+                clamped[i] = Math.Max(1, Math.Min(size.Value[i], mazeCells.Value[i]));
+            }
+            return new Vector(clamped);
         }
 
         private static GeneratorOptions.MazeFillFactor MapFill(double fill) {

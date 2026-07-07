@@ -127,3 +127,15 @@ Creating a `World` SHALL fix the shared, inherited parameters (seed, store, regi
 #### Scenario: A footprint too small to hold a region is rejected
 - **WHEN** `regionSize` cannot fit at least one maze cell for the chosen cell sizing
 - **THEN** generation fails with a clear error rather than producing a degenerate region
+
+### Requirement: Regions can contain rooms of every supported kind
+
+A recipe SHALL be able to request rooms placed into the region — walkable halls and caves, and impassable blocked areas (the room-capable maze-gen area types) — sized in world cells, with open-ended semantic tags, and mixable within one recipe. Rooms MUST render into the region (halls/caves as walkable open space, blocked areas as impassable) and MUST NOT break the region's entrance/exit POIs.
+
+#### Scenario: A room preset opens walkable space a plain maze lacks
+- **WHEN** a region is generated from a room preset (e.g. Dungeon or Caverns)
+- **THEN** it contains contiguous walkable areas larger than a one-cell corridor, which a plain maze does not
+
+#### Scenario: Every room kind generates a valid region
+- **WHEN** a region is generated with Hall, Cave, or Blocked rooms
+- **THEN** the region generates without error and still has distinct entrance and exit POIs
