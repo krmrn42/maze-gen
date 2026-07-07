@@ -65,23 +65,27 @@ Everything below is the **supported** integration path today.
 using PlayersWorlds.Maps;
 using PlayersWorlds.Maps.World;
 
-// 1. Make a world. NullRegionStore = regenerate each run, persist nothing.
-//    Supply your own IRegionStore to persist (see "Persistence" below).
-//    Default cells are SQUARE 1x1 (the right shape for square game tiles).
+// 1. GAME START — make the world once. It holds what every region inherits:
+//    seed, store, region footprint, and a default recipe. NullRegionStore =
+//    regenerate each run, persist nothing (supply your own to persist).
 var world = new World(
     store: new NullRegionStore(),
     worldSeed: 12345,
-    regionMazeSize: new Vector(32, 32)); // in MAZE cells; Block side = 2N+1
+    regionSize: new Vector(65, 65),     // the region's WORLD footprint (Block
+                                        // cells) == RegionView.Size, exactly.
+    defaultRecipe: RegionRecipe.Maze);  // inherited unless a call overrides it
 
-// Cell shape is the CLIENT's setting: the default ctor is square; the
-// explicit ctor lets you widen corridors / walls (non-square stretches the
-// region, so only for deliberate effects):
-//   new World(store, seed, mazeSize, cellSize: new Vector(1,1),
-//                                    wallSize: new Vector(1,1));
-
-// 2. Ask for the region at a lattice address. Synchronous: generate-once,
-//    then load. YOU decide when to call it and off which thread.
+// 2. PLAYER POSITIONING / LOADING — ask for the region at an address, and let
+//    THIS region pick its kind. Synchronous: generate-once, then load. You
+//    decide when to call it and off which thread. A region's kind binds at
+//    first creation (a later call with a different recipe returns the stored
+//    region unchanged).
 RegionView region = world.GetOrCreate(new RegionAddress(new Vector(0, 0)));
+RegionView caves  = world.GetOrCreate(new RegionAddress(new Vector(1, 0)),
+    RegionRecipe.Corridors                       // intent preset...
+        .WithAlgorithm(RegionAlgorithm.HuntAndKill)  // ...or a specific algorithm
+        .WithCells(1));                              // square cells (the default)
+// Custom algorithm: RegionAlgorithm.Custom<MyGenerator>() (T : MazeGenerator).
 
 // 3. Read cells by region-local (Block) coordinate. Passability drives tiles.
 for (var y = 0; y < region.Size.Y; y++) {

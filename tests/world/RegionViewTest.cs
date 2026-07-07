@@ -12,7 +12,7 @@ namespace PlayersWorlds.Maps.World {
             new RegionAddress(new Vector(0, 0));
 
         private static RegionView Generate(int seed) =>
-            new World(new NullRegionStore(), seed, new Vector(6, 6))
+            new World(new NullRegionStore(), seed, new Vector(13, 13))
                 .GetOrCreate(Origin);
 
         [Test]
@@ -53,7 +53,7 @@ namespace PlayersWorlds.Maps.World {
 
         [Test]
         public void ToWorld_OffsetsByAddress() {
-            var region = new World(new NullRegionStore(), 5, new Vector(6, 6))
+            var region = new World(new NullRegionStore(), 5, new Vector(13, 13))
                 .GetOrCreate(new RegionAddress(new Vector(2, 3)));
             var local = new Vector(1, 1);
             Assert.That(region.ToWorld(local),

@@ -87,3 +87,43 @@ The façade SHALL accept an `IRegionStore` that the game implements, and `GetOrC
 #### Scenario: No-op store regenerates each call
 - **WHEN** a `NullRegionStore` (always-miss, never-save) is supplied and `GetOrCreate` is called at startup
 - **THEN** a fresh region is generated for use and nothing is persisted
+
+### Requirement: Region generation is configurable by an intent recipe
+
+The façade SHALL let the caller choose how a region is generated via an immutable `RegionRecipe` — algorithm, fill density, and cell shape — rather than baking them. It MUST provide intent presets and fluent overrides, and MUST default so that the no-argument path still works. The maze algorithm MUST be selectable from a discoverable built-in set AND extensible with a caller-supplied `MazeGenerator` via an escape hatch, without the façade exposing renderer types.
+
+#### Scenario: A preset generates without extra configuration
+- **WHEN** a caller uses a `RegionRecipe` preset (e.g. `Maze`)
+- **THEN** the region generates with that preset's algorithm/fill/cells and no further configuration is required
+
+#### Scenario: Overrides are additive and non-mutating
+- **WHEN** a caller applies `WithAlgorithm` / `WithFill` / `WithCells` to a recipe
+- **THEN** a new recipe with that override is returned and the original recipe is unchanged
+
+#### Scenario: A custom algorithm can be supplied
+- **WHEN** a caller supplies a custom `MazeGenerator` subtype via the algorithm escape hatch
+- **THEN** the region is generated with that algorithm, and no renderer type appears on the façade's public surface
+
+### Requirement: World holds shared parameters; region kind is chosen per call and binds at creation
+
+Creating a `World` SHALL fix the shared, inherited parameters (seed, store, region footprint, default recipe). `GetOrCreate` SHALL accept a per-call recipe that overrides the default for that region only. A region's kind MUST bind at first generation: a later `GetOrCreate` on an already-stored address returns the stored region and ignores any newly supplied recipe.
+
+#### Scenario: Different regions can be different kinds
+- **WHEN** two different addresses are generated with different recipes
+- **THEN** each region reflects its own recipe
+
+#### Scenario: Recipe is ignored once a region exists
+- **WHEN** `GetOrCreate(address, recipeB)` is called for an address already generated with `recipeA`
+- **THEN** the stored region (from `recipeA`) is returned and `recipeB` is ignored
+
+### Requirement: regionSize is the region's world footprint
+
+`regionSize` SHALL be the region's footprint in the world, in Block cells — the uniform lattice pitch — and MUST equal exactly what `RegionView.Size` reports. The number of corridors/rooms within the footprint is derived internally from the recipe's cell sizing; the caller does not specify maze-cell counts.
+
+#### Scenario: The requested footprint is the reported size
+- **WHEN** a world is created with a given `regionSize` and a region is generated
+- **THEN** the returned `RegionView.Size` equals that `regionSize` exactly, in every dimension
+
+#### Scenario: A footprint too small to hold a region is rejected
+- **WHEN** `regionSize` cannot fit at least one maze cell for the chosen cell sizing
+- **THEN** generation fails with a clear error rather than producing a degenerate region

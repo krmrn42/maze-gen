@@ -8,33 +8,31 @@ using static PlayersWorlds.Maps.Maze.Maze2DRenderer;
 
 namespace PlayersWorlds.Maps.World {
     /// <summary>
-    /// The entry point of the region contract: a synchronous factory that hands
-    /// a game one generated <see cref="RegionView"/> per <see cref="RegionAddress"/>,
-    /// generating it once and thereafter reloading it from the game's
-    /// <see cref="IRegionStore"/>.
+    /// A persistent, seeded space of regions — created once (a game-start
+    /// event) and then asked for one region at a time as the player moves (a
+    /// positioning / environment-loading event).
     /// </summary>
     /// <remarks>
-    /// The call blocks — maze generation is bounded but can take a few
-    /// milliseconds to tens of milliseconds — and it is the game's job to decide
-    /// <i>when</i> to call it and off which thread. There is no "endless" call:
-    /// each call produces one bounded region; the endless world emerges from the
-    /// game calling repeatedly for the addresses it needs. Generation is
-    /// deterministic: the same world seed and address always produce the same
-    /// region.
+    /// The world holds what every region shares and inherits: the seed, the
+    /// store, the region footprint (<c>regionSize</c>), and a default recipe.
+    /// Each <see cref="GetOrCreate"/> may pass its own <see cref="RegionRecipe"/>
+    /// so different regions can be different kinds. Regions tile a <b>uniform
+    /// lattice</b>: every region is <c>regionSize</c> Block cells, which is
+    /// exactly what <see cref="RegionView.Size"/> reports and the pitch
+    /// <see cref="RegionAddress.ToWorld"/> uses.
+    ///
+    /// The call blocks (bounded — a few to tens of ms); the game decides when to
+    /// call it and off which thread. Generation is deterministic: same world
+    /// seed + address always produce the same region.
     /// </remarks>
     public sealed class World {
         private readonly IRegionStore _store;
         private readonly int _worldSeed;
-        private readonly Vector _regionMazeSize;
-        private readonly Maze2DRendererOptions _renderOptions;
-        private readonly Type _algorithm =
-            GeneratorOptions.Algorithms.RecursiveBacktracker;
-        private readonly GeneratorOptions.MazeFillFactor _fillFactor =
-            GeneratorOptions.MazeFillFactor.Full;
+        private readonly Vector _regionSize;
+        private readonly RegionRecipe _defaultRecipe;
 
         /// <summary>
-        /// Creates a world façade with <b>square</b> 1×1 Block cells — the
-        /// correct default for a game whose tiles are square in world space.
+        /// Creates a world.
         /// </summary>
         /// <param name="store">The game's persistence seam. Use a
         /// <see cref="NullRegionStore"/> to always regenerate and persist
@@ -42,53 +40,42 @@ namespace PlayersWorlds.Maps.World {
         /// <param name="worldSeed">The base seed; each region derives its own
         /// seed from this and its address, so regions are independently
         /// reproducible.</param>
-        /// <param name="regionMazeSize">The region size in <i>maze</i> cells
-        /// (before Block expansion). The rendered Block size is larger; read it
-        /// from <see cref="RegionView.Size"/>.</param>
-        public World(IRegionStore store, int worldSeed, Vector regionMazeSize)
-            : this(store, worldSeed, regionMazeSize,
-                   new Vector(1, 1), new Vector(1, 1)) { }
-
-        /// <summary>
-        /// Creates a world façade with explicit Block cell sizing — the client
-        /// owns the cell shape. Non-square sizes stretch the region; a game
-        /// wanting square tiles passes equal, square sizes (the default ctor).
-        /// </summary>
-        /// <param name="store">The game's persistence seam.</param>
-        /// <param name="worldSeed">The base seed for per-region seeding.</param>
-        /// <param name="regionMazeSize">The region size in <i>maze</i> cells.
-        /// </param>
-        /// <param name="cellSize">The size, in Block cells, of each maze cell's
-        /// walkable interior (corridor width). Use <c>(1, 1)</c> for square.
-        /// </param>
-        /// <param name="wallSize">The size, in Block cells, of the walls between
-        /// maze cells (wall thickness). Use <c>(1, 1)</c> for square.</param>
-        public World(IRegionStore store, int worldSeed, Vector regionMazeSize,
-                     Vector cellSize, Vector wallSize) {
+        /// <param name="regionSize">The region's footprint in the world, in
+        /// Block cells — the uniform lattice pitch. This is exactly what
+        /// <see cref="RegionView.Size"/> reports; the number of corridors/rooms
+        /// within it is derived from the recipe's cell sizing.</param>
+        /// <param name="defaultRecipe">What a region is generated as unless a
+        /// <see cref="GetOrCreate"/> call overrides it. Defaults to
+        /// <see cref="RegionRecipe.Maze"/>.</param>
+        public World(IRegionStore store, int worldSeed, Vector regionSize,
+                     RegionRecipe defaultRecipe = null) {
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _worldSeed = worldSeed;
-            regionMazeSize.ThrowIfNotAValidSize(nameof(regionMazeSize));
-            _regionMazeSize = regionMazeSize;
-            cellSize.ThrowIfNotAValidSize(nameof(cellSize));
-            wallSize.ThrowIfNotAValidSize(nameof(wallSize));
-            _renderOptions = Maze2DRendererOptions.RectCells(cellSize, wallSize);
+            regionSize.ThrowIfNotAValidSize(nameof(regionSize));
+            _regionSize = regionSize;
+            _defaultRecipe = defaultRecipe ?? RegionRecipe.Maze;
         }
 
         /// <summary>
         /// Returns the region at <paramref name="address"/>: the stored region
-        /// if the store has one, otherwise a freshly generated region that is
-        /// then saved. Synchronous; no streaming.
+        /// if the store has one, otherwise a freshly generated region (using
+        /// <paramref name="recipe"/>, or the world's default) that is then
+        /// saved. Synchronous; no streaming.
         /// </summary>
-        /// <param name="address">The region's address on the region lattice.
-        /// </param>
+        /// <param name="address">The region's address on the lattice.</param>
+        /// <param name="recipe">The recipe for this region if it must be
+        /// generated. Ignored if the region is already stored (a region's kind
+        /// is fixed when it is first created). Defaults to the world's default
+        /// recipe.</param>
         /// <returns>The region as a read-only <see cref="RegionView"/>.</returns>
-        public RegionView GetOrCreate(RegionAddress address) {
+        public RegionView GetOrCreate(RegionAddress address,
+                                      RegionRecipe recipe = null) {
             if (_store.TryLoad(address, out var serialized) &&
                 !string.IsNullOrEmpty(serialized)) {
                 var loaded = new AreaSerializer().Deserialize(serialized);
                 return new RegionView(address, loaded);
             }
-            var region = Generate(address);
+            var region = Generate(address, recipe ?? _defaultRecipe);
             _store.Save(address, new AreaSerializer().Serialize(region));
             return new RegionView(address, region);
         }
@@ -101,21 +88,25 @@ namespace PlayersWorlds.Maps.World {
             return seed;
         }
 
-        private Area Generate(RegionAddress address) {
+        private Area Generate(RegionAddress address, RegionRecipe recipe) {
             var randomSource = RandomSource.FromSeed(SeedFor(address));
+            var renderOptions =
+                Maze2DRendererOptions.RectCells(recipe.CellSize, recipe.WallSize);
+            var mazeCells =
+                DeriveMazeCells(_regionSize, recipe.CellSize, recipe.WallSize);
             var options = new GeneratorOptions() {
                 RandomSource = randomSource,
-                MazeAlgorithm = _algorithm,
-                FillFactor = _fillFactor,
+                MazeAlgorithm = recipe.Algorithm.GeneratorType,
+                FillFactor = MapFill(recipe.Fill),
             };
             var builder = new GeneratedWorld(randomSource)
-                .AddLayer(AreaType.Maze, _regionMazeSize)
+                .AddLayer(AreaType.Maze, mazeCells)
                 .OfMaze(MazeStructureStyle.Border, options)
                 .MarkLongestPath()
                 .MarkDeadends();
 
-            // Capture the POIs on the Border maze BEFORE ToMap discards the
-            // marker attachments; bridge them into Block coordinates after.
+            // Capture POIs on the Border maze before the Block conversion drops
+            // the marker attachments; bridge them into Block coordinates after.
             var mazeArea = builder.Map();
             var entrance = mazeArea.Grid.Single(v =>
                 mazeArea[v]
@@ -125,25 +116,57 @@ namespace PlayersWorlds.Maps.World {
                     .X<DijkstraDistance.IsLongestTrailEndExtension>() != null);
             var deadEnds = mazeArea.X<DeadEnd.DeadEndsExtension>().DeadEnds;
 
-            builder.ToMap(_renderOptions);
-            var blockMap = builder.Map();
+            // Render into a footprint-sized canvas so RegionView.Size ==
+            // regionSize exactly; any remainder past the maze stays impassable.
+            var blockMap = Area.Create(Vector.Zero(_regionSize.Dimensions),
+                _regionSize, AreaType.Environment);
+            new MazeAreaStyleConverter()
+                .ConvertMazeBorderToBlock(mazeArea, blockMap, renderOptions);
 
-            BakePoi(blockMap, mazeArea, entrance, PoiKind.Entrance);
-            BakePoi(blockMap, mazeArea, exit, PoiKind.Exit);
+            BakePoi(blockMap, mazeArea, entrance, PoiKind.Entrance, renderOptions);
+            BakePoi(blockMap, mazeArea, exit, PoiKind.Exit, renderOptions);
             foreach (var deadEnd in deadEnds
                          .Where(de => de != entrance && de != exit)) {
-                BakePoi(blockMap, mazeArea, deadEnd, PoiKind.DeadEnd);
+                BakePoi(blockMap, mazeArea, deadEnd, PoiKind.DeadEnd,
+                        renderOptions);
             }
             return blockMap;
+        }
+
+        // Largest maze-cell grid whose Block rendering fits inside the region
+        // footprint: footprint = wall + N·(cell + wall) per dimension.
+        private static Vector DeriveMazeCells(Vector footprint, Vector cellSize,
+                                              Vector wallSize) {
+            var cells = new int[footprint.Dimensions];
+            for (var i = 0; i < footprint.Dimensions; i++) {
+                var pitch = cellSize.Value[i] + wallSize.Value[i];
+                var n = (footprint.Value[i] - wallSize.Value[i]) / pitch;
+                if (n < 1) {
+                    throw new ArgumentException(
+                        $"regionSize {footprint} is too small for the cell/wall " +
+                        "sizing; each dimension must fit at least one cell.");
+                }
+                cells[i] = n;
+            }
+            return new Vector(cells);
+        }
+
+        private static GeneratorOptions.MazeFillFactor MapFill(double fill) {
+            if (fill >= 0.95) return GeneratorOptions.MazeFillFactor.Full;
+            if (fill >= 0.825) return GeneratorOptions.MazeFillFactor.NinetyPercent;
+            if (fill >= 0.625) return GeneratorOptions.MazeFillFactor.ThreeQuarters;
+            if (fill >= 0.375) return GeneratorOptions.MazeFillFactor.Half;
+            return GeneratorOptions.MazeFillFactor.Quarter;
         }
 
         // Translates a POI on the Border maze into the Block cell at the centre
         // of that maze cell, and tags it so the POI is a first-class,
         // serializable property of the region.
-        private void BakePoi(Area blockMap, Area mazeArea, Vector mazeCell,
-                             PoiKind kind) {
+        private static void BakePoi(Area blockMap, Area mazeArea, Vector mazeCell,
+                                    PoiKind kind,
+                                    Maze2DRendererOptions renderOptions) {
             var mapping = new CellsMapping(
-                blockMap, mazeCell - mazeArea.Position, _renderOptions);
+                blockMap, mazeCell - mazeArea.Position, renderOptions);
             blockMap[mapping.CenterPosition].Tags.Add(
                 new Cell.CellTag(RegionTags.For(kind)));
         }

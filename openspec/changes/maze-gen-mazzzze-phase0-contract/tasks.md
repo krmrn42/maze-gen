@@ -46,3 +46,13 @@ Done on the sibling `mazzzze` repo, branch `integrate-maze-gen-facade`, commit `
 - [x] 6.1 Run `openspec validate maze-gen-mazzzze-phase0-contract --strict` (valid) and `make ci` (lint + build + 334 tests) green
 - [x] 6.2 Update `docs/ROADMAP.md` §3 to mark the Phase-0 contract as defined and frozen at this integration (Phase 0 ✅ frozen; Phase 1 🚧 largely landed)
 - [x] 6.3 Note the frozen façade surface as the freeze point; record that Phases 1–3 add capability behind it without changing the calls v1 makes (design.md "As-built freeze" + ROADMAP §3)
+
+## 7. Configuration surface & lifecycle (region-facade, follow-up slice)
+
+- [x] 7.1 `RegionAlgorithm`: discoverable built-ins for the six generators + `Custom<T>()`/`Custom(Type)` escape hatch (validates subtype + parameterless ctor); no renderer types on the surface
+- [x] 7.2 `RegionRecipe`: immutable, intent presets (`Maze`, `Corridors`), fluent `WithAlgorithm`/`WithFill`/`WithCells`; square 1×1 default cells; cell shape lives here (no `Maze2DRendererOptions` on the façade)
+- [x] 7.3 `World`: `regionSize` = world footprint (== `RegionView.Size`, generation renders into a footprint-sized canvas, maze-cell count derived); `defaultRecipe` ctor arg; `GetOrCreate(address, recipe?)`; recipe binds at first generation
+- [x] 7.4 Tests: footprint honored exactly (incl. non-square) + too-small throws; per-region recipe changes content; recipe ignored when stored; algorithm/recipe immutability; contract test still forbids renderer types
+- [x] 7.5 Update `docs/INTEGRATION.md` quickstart (footprint `regionSize`, per-region recipe, algorithm selection) and `design.md` (D9/D10) + spec
+- [x] 7.6 Update mazzzze `MazeData` to the new API (footprint `regionSize`, explicit `RegionRecipe`)
+- [ ] 7.7 **NOT STARTED (next slice):** room support — `RoomKind` enum + open tags, `WithRooms`/`AddRoom`, `Dungeon`/`Caverns` presets, mapping to `WithAreas`

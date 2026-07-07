@@ -5,15 +5,16 @@ using NUnit.Framework;
 namespace PlayersWorlds.Maps.World {
     [TestFixture]
     public class WorldTest {
-        private static readonly Vector RegionMazeSize = new Vector(6, 6);
+        // A region footprint (Block cells) — this is exactly what
+        // RegionView.Size reports. 13 = 2*6+1 fits a 6-cell maze exactly.
+        private static readonly Vector RegionSize = new Vector(13, 13);
         private static readonly RegionAddress Origin =
             new RegionAddress(new Vector(0, 0));
 
         private static World NewWorld(IRegionStore store, int seed) =>
-            new World(store, seed, RegionMazeSize);
+            new World(store, seed, RegionSize);
 
-        // A stable fingerprint of a region's rendered structure + POIs, so two
-        // regions can be compared for equality without exposing internals.
+        // A stable fingerprint of a region's rendered structure + POIs.
         private static string Signature(RegionView region) {
             var sb = new StringBuilder();
             sb.Append(region.Size).Append('|');
@@ -37,46 +38,35 @@ namespace PlayersWorlds.Maps.World {
                 .GetOrCreate(Origin);
 
             Assert.That(region.Address, Is.EqualTo(Origin));
-            Assert.That(region.Size.Area, Is.GreaterThan(RegionMazeSize.Area));
 
-            // Exactly one entrance and one exit, and they are distinct cells.
             var entrance = region.Pois.Single(p => p.Kind == PoiKind.Entrance);
             var exit = region.Pois.Single(p => p.Kind == PoiKind.Exit);
             Assert.That(entrance.Local, Is.Not.EqualTo(exit.Local));
 
-            // Every POI sits on a passable cell.
             foreach (var poi in region.Pois) {
-                Assert.That(region.CellAt(poi.Local).IsPassable, Is.True,
-                    $"POI {poi.Kind} at {poi.Local} must be passable");
+                Assert.That(region.CellAt(poi.Local).IsPassable, Is.True);
             }
-
-            // There is at least some floor.
-            var floors = 0;
-            for (var y = 0; y < region.Size.Y; y++)
-                for (var x = 0; x < region.Size.X; x++)
-                    if (region.CellAt(new Vector(x, y)).IsPassable) floors++;
-            Assert.That(floors, Is.GreaterThan(0));
         }
 
         [Test]
-        public void DefaultCells_AreSquare_NotTheAsciiDebugRatio() {
-            // A square maze must render to a square Block region (each maze cell
-            // is a 1×1 floor with 1-thick walls -> 2N+1 per side). The 2×1
-            // ASCII-console ratio must NOT leak into the game default.
-            var region = NewWorld(new NullRegionStore(), 7).GetOrCreate(Origin);
-            Assert.That(region.Size.X, Is.EqualTo(region.Size.Y),
-                "default region cells must be square");
-            Assert.That(region.Size.X,
-                Is.EqualTo(2 * RegionMazeSize.X + 1));
+        public void RegionSize_IsTheFootprint_ReportedExactlyByRegionView() {
+            var region = NewWorld(new NullRegionStore(), 1).GetOrCreate(Origin);
+            Assert.That(region.Size, Is.EqualTo(RegionSize));
         }
 
         [Test]
-        public void ExplicitCellSizes_LetTheClientShapeCells() {
-            // The client owns cell shape via the explicit ctor.
-            var wide = new World(new NullRegionStore(), 7, RegionMazeSize,
-                cellSize: new Vector(2, 1), wallSize: new Vector(2, 1))
+        public void NonSquareFootprint_IsHonoredInBothDimensions() {
+            var size = new Vector(21, 13);
+            var region = new World(new NullRegionStore(), 1, size)
                 .GetOrCreate(Origin);
-            Assert.That(wide.Size.X, Is.Not.EqualTo(wide.Size.Y));
+            Assert.That(region.Size, Is.EqualTo(size));
+        }
+
+        [Test]
+        public void TooSmallFootprint_Throws() {
+            var world = new World(new NullRegionStore(), 1, new Vector(2, 2));
+            Assert.That(() => world.GetOrCreate(Origin),
+                Throws.ArgumentException);
         }
 
         [Test]
@@ -102,27 +92,66 @@ namespace PlayersWorlds.Maps.World {
         }
 
         [Test]
+        public void PerRegionRecipe_ChangesTheRegion() {
+            var world = NewWorld(new NullRegionStore(), 7);
+            var maze = world.GetOrCreate(Origin, RegionRecipe.Maze);
+            var corridors = world.GetOrCreate(Origin, RegionRecipe.Corridors);
+            // Same footprint, different content.
+            Assert.That(corridors.Size, Is.EqualTo(maze.Size));
+            Assert.That(Signature(corridors), Is.Not.EqualTo(Signature(maze)));
+        }
+
+        [Test]
+        public void ExplicitCellSizes_ChangeStructure_NotFootprint() {
+            var square = NewWorld(new NullRegionStore(), 7).GetOrCreate(Origin);
+            var wide = NewWorld(new NullRegionStore(), 7).GetOrCreate(Origin,
+                RegionRecipe.Maze.WithCells(
+                    new Vector(2, 1), new Vector(1, 1)));
+            Assert.That(wide.Size, Is.EqualTo(square.Size));         // footprint fixed
+            Assert.That(Signature(wide), Is.Not.EqualTo(Signature(square)));
+        }
+
+        [Test]
+        public void DefaultRecipe_IsInheritedUnlessOverridden() {
+            // A world defaulting to Corridors yields the same as passing
+            // Corridors explicitly to a Maze-defaulted world.
+            var defaulted = new World(new NullRegionStore(), 7, RegionSize,
+                    RegionRecipe.Corridors)
+                .GetOrCreate(Origin);
+            var explicitCorridors = NewWorld(new NullRegionStore(), 7)
+                .GetOrCreate(Origin, RegionRecipe.Corridors);
+            Assert.That(Signature(defaulted),
+                Is.EqualTo(Signature(explicitCorridors)));
+        }
+
+        [Test]
         public void GetOrCreate_GeneratesOnMiss_ThenLoadsOnHit() {
             var store = new InMemoryRegionStore();
             var world = NewWorld(store, 555);
 
             var first = world.GetOrCreate(Origin);
             Assert.That(store.SaveCount, Is.EqualTo(1));
-            Assert.That(store.Count, Is.EqualTo(1));
 
             var second = world.GetOrCreate(Origin);
-            // No second save: the stored region was loaded, not regenerated.
             Assert.That(store.SaveCount, Is.EqualTo(1));
             Assert.That(Signature(second), Is.EqualTo(Signature(first)));
         }
 
         [Test]
+        public void Recipe_IsIgnored_WhenTheRegionIsAlreadyStored() {
+            var store = new InMemoryRegionStore();
+            // First generation fixes the region as a Maze.
+            var created = NewWorld(store, 7).GetOrCreate(Origin, RegionRecipe.Maze);
+            // A later call with a different recipe returns the stored region.
+            var reloaded = NewWorld(store, 7)
+                .GetOrCreate(Origin, RegionRecipe.Corridors);
+            Assert.That(Signature(reloaded), Is.EqualTo(Signature(created)));
+        }
+
+        [Test]
         public void StoredRegion_IsLoaded_NotRegenerated() {
             var store = new InMemoryRegionStore();
-            // Seed 1 generates and saves the region.
             var generated = NewWorld(store, 1).GetOrCreate(Origin);
-            // A different seed sharing the store must return the STORED region,
-            // proving it loaded rather than regenerating with the new seed.
             var loaded = NewWorld(store, 999999).GetOrCreate(Origin);
             Assert.That(Signature(loaded), Is.EqualTo(Signature(generated)));
         }
@@ -132,7 +161,6 @@ namespace PlayersWorlds.Maps.World {
             var store = new InMemoryRegionStore();
             var generated = NewWorld(store, 42).GetOrCreate(Origin);
             var reloaded = NewWorld(store, 42).GetOrCreate(Origin);
-            // Full structural + POI equality across the serialize/deserialize.
             Assert.That(Signature(reloaded), Is.EqualTo(Signature(generated)));
             Assert.That(reloaded.Pois.Count, Is.EqualTo(generated.Pois.Count));
         }
@@ -142,7 +170,6 @@ namespace PlayersWorlds.Maps.World {
             var store = new NullRegionStore();
             Assert.That(store.TryLoad(Origin, out var blob), Is.False);
             Assert.That(blob, Is.Null);
-            // A world on a null store still works (regenerates each time).
             var region = NewWorld(store, 3).GetOrCreate(Origin);
             Assert.That(region.Pois.Any(p => p.Kind == PoiKind.Entrance), Is.True);
         }

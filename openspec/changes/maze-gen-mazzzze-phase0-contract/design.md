@@ -90,4 +90,25 @@ Refinements the implementation made over the proposal (all validated by groundin
 - **`IRegionStore` is a blob store.** It persists opaque serialized strings keyed by address; the engine owns the lossless `AreaSerializer` round-trip (not `RegionView` objects). Cleaner for a game's KV/blob store.
 - **Per-address determinism** via a new public `RandomSource.FromSeed(int)`; each region's seed derives from `(worldSeed, address)`.
 - **Per-cell room type flattens to `Environment`** in current Block output; room/cave/corridor typing per cell is deferred behind the same `RegionCell.Type` field.
-- **Cell shape is square by default and client-owned.** The façade does not expose `Maze2DRendererOptions` (a renderer type — the contract test forbids it); instead `World` has a simple square-1×1 ctor and an explicit `(cellSize, wallSize)` ctor. The old `RectCells(2, 1)` default was an ASCII-console aspect ratio that wrongly stretched a game's square tiles 2:1 — removed.
+- **Cell shape is square by default and client-owned.** The façade does not expose `Maze2DRendererOptions` (a renderer type — the contract test forbids it); instead cell shape lives in the recipe (see D9). The old `RectCells(2, 1)` default was an ASCII-console aspect ratio that wrongly stretched a game's square tiles 2:1 — removed.
+
+## D9 — Configuration surface: recipe + algorithm, with the right openness per axis
+
+The generator was baked (`RecursiveBacktracker`, `Full`). It is now a client setting via a **`RegionRecipe`** — an immutable object with intent presets (`Maze`, `Corridors`) and fluent `With…` overrides (`WithAlgorithm`, `WithFill`, `WithCells`). This collapses what would be a constructor-parameter explosion into one configurable value, and keeps the simple path one call (recipe defaults to `Maze`).
+
+Each configuration axis gets the openness that fits it — the crux of "simple *and* flexible":
+- **Algorithm** — finite blessed set, occasionally extended → **`RegionAlgorithm`**: discoverable static built-ins (the six generators) plus a `Custom<T>() where T : MazeGenerator` escape hatch. `MazeGenerator` is the engine's intended SPI, so `Custom` leaks nothing internal; the contract test still forbids renderer types.
+- **Room structure** (Phase 0.2) — small & stable → a closed `RoomKind` enum.
+- **Room semantics** — unbounded, grows forever → open **string tags**, never an enum.
+
+Presets encode algorithm affinity so a caller names intent, not mechanism; because algorithms are interchangeable, any preset accepts `.WithAlgorithm(...)`. *Room support (`Dungeon`/`Caverns` presets + `WithRooms`) is deferred to a follow-up slice, added behind this same `RegionRecipe` type non-breakingly.*
+
+## D10 — World vs region lifecycle; `regionSize` is the world footprint
+
+Two lifecycle events, two homes for parameters:
+- **`new World(...)` — game start.** Holds what every region shares and inherits: seed, store, `regionSize`, and the default recipe.
+- **`GetOrCreate(address, recipe?)` — player positioning / environment loading.** The recipe/type is chosen *per region*, defaulting to the world's. A region's kind **binds at first generation**; a later call with a different recipe returns the stored region unchanged (mutations are out of scope, Phase 1+).
+
+`regionSize` is the region's **footprint in the world**, in Block cells — the uniform lattice pitch, and **exactly what `RegionView.Size` reports** (generation renders into a footprint-sized canvas; the maze-cell count is derived internally, and any remainder past the maze is impassable). This removes the old `regionMazeSize`→`Size` (N→2N+1) confusion: you ask for a 65×65 region, you get 65×65.
+
+**Uniform lattice** is the model: equal-size regions, `ToWorld = address·regionSize + local`. A gate-graph with uniform nodes and aligned gates *is* this lattice — the two are not in tension. Variable-size regions / non-Cartesian gate-adjacency are a Phase-2 generalization behind the same `GetOrCreate(address)`; the real Phase-2 work is seam-stitching (aligning a new region's gate to its neighbour), not a topology change.
