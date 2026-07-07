@@ -67,10 +67,17 @@ using PlayersWorlds.Maps.World;
 
 // 1. Make a world. NullRegionStore = regenerate each run, persist nothing.
 //    Supply your own IRegionStore to persist (see "Persistence" below).
+//    Default cells are SQUARE 1x1 (the right shape for square game tiles).
 var world = new World(
     store: new NullRegionStore(),
     worldSeed: 12345,
-    regionMazeSize: new Vector(32, 32)); // in MAZE cells; Block size is larger
+    regionMazeSize: new Vector(32, 32)); // in MAZE cells; Block side = 2N+1
+
+// Cell shape is the CLIENT's setting: the default ctor is square; the
+// explicit ctor lets you widen corridors / walls (non-square stretches the
+// region, so only for deliberate effects):
+//   new World(store, seed, mazeSize, cellSize: new Vector(1,1),
+//                                    wallSize: new Vector(1,1));
 
 // 2. Ask for the region at a lattice address. Synchronous: generate-once,
 //    then load. YOU decide when to call it and off which thread.
@@ -125,16 +132,17 @@ of war (**C4**) and mob pathing/minimap (**C5**) key to the
 queries are a later phase.
 
 ### Generation latency envelope (plan your threading — C1)
-Cold `GetOrCreate` (generate + Block render + serialize), Release build:
+Cold `GetOrCreate` (generate + Block render + serialize), Release build, with the
+default **square** 1×1 cells (Block side = 2·maze + 1):
 
 | Region (maze) | Block size | Latency |
 |---|---|---|
-| 8×8 | 34×17 | ~55 ms |
-| 16×16 | 66×33 | ~110 ms |
-| 24×24 | 98×49 | ~160 ms |
-| 32×32 | 130×65 | ~320 ms |
-| 48×48 | 194×97 | ~930 ms |
-| 64×64 | 258×129 | ~2.2 s |
+| 8×8 | 17×17 | ~27 ms |
+| 16×16 | 33×33 | ~87 ms |
+| 24×24 | 49×49 | ~108 ms |
+| 32×32 | 65×65 | ~215 ms |
+| 48×48 | 97×97 | ~690 ms |
+| 64×64 | 129×129 | ~1.7 s |
 
 Latency grows super-linearly with area. Rule of thumb: **≤16² is
 loading-screen-safe on the main thread; 32² and up should generate on a worker

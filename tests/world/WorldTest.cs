@@ -59,6 +59,27 @@ namespace PlayersWorlds.Maps.World {
         }
 
         [Test]
+        public void DefaultCells_AreSquare_NotTheAsciiDebugRatio() {
+            // A square maze must render to a square Block region (each maze cell
+            // is a 1×1 floor with 1-thick walls -> 2N+1 per side). The 2×1
+            // ASCII-console ratio must NOT leak into the game default.
+            var region = NewWorld(new NullRegionStore(), 7).GetOrCreate(Origin);
+            Assert.That(region.Size.X, Is.EqualTo(region.Size.Y),
+                "default region cells must be square");
+            Assert.That(region.Size.X,
+                Is.EqualTo(2 * RegionMazeSize.X + 1));
+        }
+
+        [Test]
+        public void ExplicitCellSizes_LetTheClientShapeCells() {
+            // The client owns cell shape via the explicit ctor.
+            var wide = new World(new NullRegionStore(), 7, RegionMazeSize,
+                cellSize: new Vector(2, 1), wallSize: new Vector(2, 1))
+                .GetOrCreate(Origin);
+            Assert.That(wide.Size.X, Is.Not.EqualTo(wide.Size.Y));
+        }
+
+        [Test]
         public void Generation_IsDeterministic_ForAFixedSeed() {
             var a = NewWorld(new NullRegionStore(), 999).GetOrCreate(Origin);
             var b = NewWorld(new NullRegionStore(), 999).GetOrCreate(Origin);

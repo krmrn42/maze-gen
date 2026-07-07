@@ -90,3 +90,4 @@ Refinements the implementation made over the proposal (all validated by groundin
 - **`IRegionStore` is a blob store.** It persists opaque serialized strings keyed by address; the engine owns the lossless `AreaSerializer` round-trip (not `RegionView` objects). Cleaner for a game's KV/blob store.
 - **Per-address determinism** via a new public `RandomSource.FromSeed(int)`; each region's seed derives from `(worldSeed, address)`.
 - **Per-cell room type flattens to `Environment`** in current Block output; room/cave/corridor typing per cell is deferred behind the same `RegionCell.Type` field.
+- **Cell shape is square by default and client-owned.** The façade does not expose `Maze2DRendererOptions` (a renderer type — the contract test forbids it); instead `World` has a simple square-1×1 ctor and an explicit `(cellSize, wallSize)` ctor. The old `RectCells(2, 1)` default was an ASCII-console aspect ratio that wrongly stretched a game's square tiles 2:1 — removed.

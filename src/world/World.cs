@@ -33,7 +33,8 @@ namespace PlayersWorlds.Maps.World {
             GeneratorOptions.MazeFillFactor.Full;
 
         /// <summary>
-        /// Creates a world façade.
+        /// Creates a world façade with <b>square</b> 1×1 Block cells — the
+        /// correct default for a game whose tiles are square in world space.
         /// </summary>
         /// <param name="store">The game's persistence seam. Use a
         /// <see cref="NullRegionStore"/> to always regenerate and persist
@@ -44,17 +45,33 @@ namespace PlayersWorlds.Maps.World {
         /// <param name="regionMazeSize">The region size in <i>maze</i> cells
         /// (before Block expansion). The rendered Block size is larger; read it
         /// from <see cref="RegionView.Size"/>.</param>
-        /// <param name="renderOptions">Block cell sizing. Defaults to
-        /// <see cref="Maze2DRendererOptions.RectCells(int,int)"/> of (2, 1).
+        public World(IRegionStore store, int worldSeed, Vector regionMazeSize)
+            : this(store, worldSeed, regionMazeSize,
+                   new Vector(1, 1), new Vector(1, 1)) { }
+
+        /// <summary>
+        /// Creates a world façade with explicit Block cell sizing — the client
+        /// owns the cell shape. Non-square sizes stretch the region; a game
+        /// wanting square tiles passes equal, square sizes (the default ctor).
+        /// </summary>
+        /// <param name="store">The game's persistence seam.</param>
+        /// <param name="worldSeed">The base seed for per-region seeding.</param>
+        /// <param name="regionMazeSize">The region size in <i>maze</i> cells.
         /// </param>
+        /// <param name="cellSize">The size, in Block cells, of each maze cell's
+        /// walkable interior (corridor width). Use <c>(1, 1)</c> for square.
+        /// </param>
+        /// <param name="wallSize">The size, in Block cells, of the walls between
+        /// maze cells (wall thickness). Use <c>(1, 1)</c> for square.</param>
         public World(IRegionStore store, int worldSeed, Vector regionMazeSize,
-                     Maze2DRendererOptions renderOptions = null) {
+                     Vector cellSize, Vector wallSize) {
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _worldSeed = worldSeed;
             regionMazeSize.ThrowIfNotAValidSize(nameof(regionMazeSize));
             _regionMazeSize = regionMazeSize;
-            _renderOptions = renderOptions ??
-                Maze2DRendererOptions.RectCells(2, 1);
+            cellSize.ThrowIfNotAValidSize(nameof(cellSize));
+            wallSize.ThrowIfNotAValidSize(nameof(wallSize));
+            _renderOptions = Maze2DRendererOptions.RectCells(cellSize, wallSize);
         }
 
         /// <summary>

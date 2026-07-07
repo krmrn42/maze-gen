@@ -93,6 +93,9 @@ namespace PlayersWorlds.Maps.World {
             var forbidden = new HashSet<Type> {
                 typeof(Area), typeof(Cell), typeof(ExtensibleObject),
                 typeof(Grid), typeof(Cell.CellTag),
+                // No renderer/rendering-option types in the game contract.
+                typeof(Maze.Maze2DRenderer),
+                typeof(Maze.Maze2DRenderer.Maze2DRendererOptions),
             };
 
             bool IsForbidden(Type t) {
