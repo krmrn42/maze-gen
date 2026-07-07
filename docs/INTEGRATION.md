@@ -15,6 +15,36 @@ history).
 Status legend: ✅ supported now · 🟡 partial · 🔴 planned (with the phase it
 lands in). Phases are defined in [`ROADMAP.md`](./ROADMAP.md).
 
+## Consuming the library
+
+The library ships to **nuget.org** as `PlayersWorlds.Maps` (BCL-only — no
+transitive dependencies to fight the Godot runtime):
+
+```bash
+dotnet add package PlayersWorlds.Maps
+```
+
+Other devs and CI just `dotnet build` — nothing to clone. If you also work on the
+library itself, use a **conditional reference** so a local source checkout wins
+automatically and everyone else falls back to the package:
+
+```xml
+<PropertyGroup>
+  <!-- true when the maze-gen checkout sits beside this repo; override with
+       -p:MazeGenLocal=false to force the published package. -->
+  <MazeGenLocal Condition="'$(MazeGenLocal)' == '' And Exists('../../krmrn42/maze-gen/src/PlayersWorlds.Maps.csproj')">true</MazeGenLocal>
+</PropertyGroup>
+<ItemGroup Condition="'$(MazeGenLocal)' == 'true'">
+  <ProjectReference Include="../../krmrn42/maze-gen/src/PlayersWorlds.Maps.csproj" />
+</ItemGroup>
+<ItemGroup Condition="'$(MazeGenLocal)' != 'true'">
+  <PackageReference Include="PlayersWorlds.Maps" Version="0.1.*" />
+</ItemGroup>
+```
+
+Releases are cut with `make release-minor` (or `-patch`/`-major`), which tags
+`vX.Y.Z`; CI publishes that version to NuGet via OIDC trusted publishing.
+
 ## The contract in one breath
 
 A game codes against one narrow, frozen surface — the **region façade**

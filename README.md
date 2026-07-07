@@ -1,83 +1,74 @@
-# Summary
+# PlayersWorlds.Maps
 
-PlayersWorlds.Maps is a helper library that contains algorithms to help generate
-dungeon and maze maps for your 2D and 3D games.
+A procedural **maze / dungeon map-generation** library — corridors, rooms, halls,
+caves, and impassable zones for 2D/3D games. It generates the *backbone* of a map;
+the consuming game supplies gameplay, loot, mobs, and the visual layer.
 
-The basic workflow is:
+The core library is **BCL-only** (no third-party dependencies) and targets
+**net8.0**, so it drops cleanly into a Godot 4 project.
 
-1. Add the latest `PlayersWorlds.Maps.dll` to your Unity assets folder.
-2. Use the following code to generate the map:
+## Install
 
-   ```c#
-   Console.WriteLine(
-      new GeneratedWorld(RandomSource.CreateFromEnv())
-         .AddLayer(AreaType.Maze, new Vector(3, 2))
-         .OfMaze(MazeStructureStyle.Border, new GeneratorOptions() {
-                           MazeAlgorithm = GeneratorOptions.Algorithms.HuntAndKill,
-                           FillFactor = GeneratorOptions.MazeFillFactor.Full
-                        })
-         .ToMap(Maze2DRendererOptions.RectCells(3, 2))
-         .AddLayer(area => area.ShallowCopy(cells:
-            area.Select(cell =>
-               cell.Tags.Contains(Cell.CellTag.MazeTrail) ?
-                     new Cell(AreaType.Maze) :
-                     new Cell(AreaType.None))))
-         .OfMaze(MazeStructureStyle.Border, new GeneratorOptions() {
-                           MazeAlgorithm = GeneratorOptions.Algorithms.RecursiveBacktracker,
-                           FillFactor = GeneratorOptions.MazeFillFactor.ThreeQuarters
-                        })
-         .ToMap(Maze2DRendererOptions.RectCells(2, 1))
-         .Map()
-         .Render(new AsciiRendererFactory()));
-   ```
+```bash
+dotnet add package PlayersWorlds.Maps
+```
 
-3. This will generate a maze-like dungeon map that looks like the following:
+## Quick start — the region façade
 
-   ```
-   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓          ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-   ▓▓░░░░░░▓▓░░▓▓          ▓▓░░░░░░░░░░▓▓░░░░░░░░░░░░░░░░░░▓▓▓▓
-   ▓▓▓▓▒▒░░▒▒░░▓▓          ▓▓░░▒▒░░▒▒░░▒▒░░▒▒▓▓▓▓▓▓▓▓▓▓▒▒░░▒▒▓▓▓▓
-     ▓▓▓▓░░░░░░▓▓          ▓▓░░▓▓░░▓▓░░░░░░▓▓▓▓      ▓▓▓▓░░░░░░▓▓
-   ▓▓▓▓▓▓▓▓▒▒░░▓▓          ▓▓░░▓▓░░▒▒▓▓▓▓▓▓▓▓          ▓▓▓▓▒▒░░▓▓
-   ▓▓░░░░░░▓▓░░▓▓          ▓▓░░▓▓░░░░░░▓▓                ▓▓▓▓░░▓▓
-   ▓▓░░▒▒░░▒▒░░▓▓          ▓▓░░▒▒▓▓▒▒░░▓▓          ▓▓▓▓▓▓▓▓▒▒░░▓▓
-   ▓▓░░▓▓░░░░░░▓▓          ▓▓░░░░░░▓▓░░▓▓          ▓▓░░░░░░░░░░▓▓
-   ▓▓░░▒▒▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░▓▓          ▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-   ▓▓░░░░░░░░░░▓▓░░░░░░░░░░▓▓░░░░░░▓▓░░▓▓
-   ▓▓▓▓▓▓▓▓▒▒░░▒▒░░▒▒▓▓▒▒░░▒▒░░▒▒░░▒▒░░▓▓
-         ▓▓▓▓░░░░░░▓▓▓▓▓▓░░░░░░▓▓░░░░░░▓▓
-           ▓▓▓▓▓▓▓▓▓▓  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-   ```
+Games code against `PlayersWorlds.Maps.World`, a narrow, frozen contract over the
+generation pipeline (no internal `Area`/`Cell` types leak through):
 
-4. The resulting `map` is a [Area](https://aynurin.github.io/maze-gen/api/PlayersWorlds.Maps.Area.html)
-   instance that contains cells that map to Unity cells. To render the map you
-   iterate over the cells of the `map` and render whatever map objects you want
-   based on the cell tags, e.g. walls or floor tiles.
+```csharp
+using PlayersWorlds.Maps;
+using PlayersWorlds.Maps.World;
 
-5. The generated maze also contains markers for dead ends that can be a good
-   place to place loot, as well as the markers for the suggested starting and
-   ending cells that have a guaranteed and longest path between them.
+// Game start: one seeded world, created once.
+var world = new World(
+    store: new NullRegionStore(),      // supply your own IRegionStore to persist
+    worldSeed: 12345,
+    regionSize: new Vector(65, 65),    // the region's world footprint == RegionView.Size
+    defaultRecipe: RegionRecipe.Maze); // Maze / Corridors / Dungeon / Caverns
 
-# Contributing
+// As the player moves: generate (or load) a region, choosing its kind.
+RegionView region = world.GetOrCreate(new RegionAddress(new Vector(0, 0)));
 
-Check out the [contributing guide](CONTRIBUTING.md).
+foreach (var poi in region.Pois) { /* Entrance / Exit / DeadEnd, in local coords */ }
+bool floor = region.CellAt(new Vector(x, y)).IsPassable;  // drives your tiles
+```
 
-# Dev Environment
+Full integration guide, scenario coverage, and the latency envelope:
+**[`docs/INTEGRATION.md`](docs/INTEGRATION.md)**.
 
-1. Your favorite code editor. VSCode or Code OSS work well (I'm using Code OSS).
-   Please note that MonoDevelop (and perhaps Visual Studio) will change the
-   .csproj files putting a lot of unnecessary stuff there. If using one of those
-   IDEs, please don't send the .csproj files in your PRs to make sure the
-   project is maintainable in VSCode.
-2. This project is built for .NET Framework 4.7.2. Later versions of .NET are
-   not supported by Unity (yet?). I'm using the latest `mono` on Linux.
-3. All the Build/Test workflows are described in `./.vscode/tasks.json`, so if
-   using VSCode derived editor, you can use tasks to build, test, and get a
-   coverage report.
-4. Running the example maze-gen:
+The lower-level `GeneratedWorld` pipeline (layers, area overlays, explicit
+algorithm/render options) is still available for advanced composition — see
+[`docs/DESIGN.md`](docs/DESIGN.md).
 
-   ```bash
-   mono --debug build/Debug/mazegen/maze-gen.exe
-   ```
+## Build from source
 
-See some notes in the
+Requires the .NET SDK (net8.0). Everyday commands are in the **`Makefile`**:
+
+```bash
+make build     # dotnet build
+make test      # fast unit tests (what CI runs)
+make ci        # lint + build + test + smoke render
+make demo      # render a maze with two rooms as ASCII
+```
+
+To develop the library against a consuming game locally, reference it as a
+`ProjectReference` instead of the package — see the conditional-reference pattern
+in [`docs/INTEGRATION.md`](docs/INTEGRATION.md#consuming-the-library).
+
+## Docs
+
+- [`docs/PRD.md`](docs/PRD.md) — vision & journeys
+- [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, API, algorithms
+- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — the living integration guide
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased plan
+
+## Contributing
+
+See the [contributing guide](CONTRIBUTING.md).
+
+## License
+
+[MIT](LICENSE).

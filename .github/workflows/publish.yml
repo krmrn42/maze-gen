@@ -1,0 +1,65 @@
+name: Publish to NuGet
+
+# Publishes PlayersWorlds.Maps to nuget.org on a version tag (vX.Y.Z).
+# Create the tag with `make release-minor` / `-patch` / `-major`.
+#
+# Auth is NuGet Trusted Publishing (OIDC) — no stored API key. A trusted
+# publisher policy on nuget.org must be bound to THIS repo, the `publish.yml`
+# workflow, and the `production` environment; the account username is the
+# `NUGET_USER` repository variable.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  id-token: write   # required for OIDC trusted publishing
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Derive and validate version from tag
+        # GITHUB_REF_NAME is the tag (vX.Y.Z). Validate it is real semver before
+        # it flows into build args (defense-in-depth against a malformed tag).
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "Tag '${GITHUB_REF_NAME}' is not a valid vX.Y.Z version." >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: dotnet restore maze-gen.sln
+
+      - name: Build
+        run: dotnet build maze-gen.sln -c Release --no-restore -p:Version="$VERSION"
+
+      - name: Test (gate the release)
+        run: dotnet test maze-gen.sln -c Release --no-build --filter "TestCategory!=Load & TestCategory!=Integration"
+
+      - name: Pack
+        run: dotnet pack src/PlayersWorlds.Maps.csproj -c Release --no-build -p:Version="$VERSION" -o artifacts
+
+      - name: NuGet login (OIDC trusted publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
