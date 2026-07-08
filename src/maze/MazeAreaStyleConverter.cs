@@ -39,6 +39,7 @@ namespace PlayersWorlds.Maps.Maze {
                                             Cell.CellTag.MazeTrail,
                                             maxSpotWidth: 3,
                                             maxSpotHeight: 3))
+                .With(new Map2DClassifyWalls())
                 .Render(targetArea);
             return targetArea;
         }
