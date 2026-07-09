@@ -147,6 +147,18 @@ namespace PlayersWorlds.Maps {
             /// </summary>
             public static readonly CellTag MazeVoid =
                 new CellTag("MAZE2D_VOID");
+            /// <summary>
+            /// CellTag denoting a wall cell whose flat face runs along the
+            /// X axis (its wall continues east-west).
+            /// </summary>
+            public static readonly CellTag MazeWallAxisX =
+                new CellTag("MAZE2D_WALL_AXIS_X");
+            /// <summary>
+            /// CellTag denoting a wall cell whose flat face runs along the
+            /// Y axis (its wall continues north-south).
+            /// </summary>
+            public static readonly CellTag MazeWallAxisY =
+                new CellTag("MAZE2D_WALL_AXIS_Y");
         }
     }
 }

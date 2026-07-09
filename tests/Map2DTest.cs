@@ -90,6 +90,8 @@ namespace PlayersWorlds.Maps {
         internal static Dictionary<char, Cell.CellTag> Tags = new Dictionary<char, Cell.CellTag>() {
             { '▓', Cell.CellTag.MazeWall },
             { '▒', Cell.CellTag.MazeWallCorner },
+            { '═', Cell.CellTag.MazeWallAxisX },
+            { '║', Cell.CellTag.MazeWallAxisY },
             { '░', Cell.CellTag.MazeTrail },
             { '0', Cell.CellTag.MazeVoid },
         };
