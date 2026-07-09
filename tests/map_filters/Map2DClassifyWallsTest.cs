@@ -23,7 +23,7 @@ namespace PlayersWorlds.Maps.MapFilters {
             var expected =
                 "░░░░░\n" +
                 "░░░░░\n" +
-                "═════\n" +
+                "▓▓▓▓▓\n" +
                 "░░░░░\n" +
                 "░░░░░\n";
             Assert.That(Classify(input), Is.EqualTo(expected));
@@ -38,11 +38,11 @@ namespace PlayersWorlds.Maps.MapFilters {
                 "░░▓░░\n" +
                 "░░▓░░\n";
             var expected =
-                "░░║░░\n" +
-                "░░║░░\n" +
-                "░░║░░\n" +
-                "░░║░░\n" +
-                "░░║░░\n";
+                "░░▓░░\n" +
+                "░░▓░░\n" +
+                "░░▓░░\n" +
+                "░░▓░░\n" +
+                "░░▓░░\n";
             Assert.That(Classify(input), Is.EqualTo(expected));
         }
 
@@ -57,9 +57,9 @@ namespace PlayersWorlds.Maps.MapFilters {
             var expected =
                 "░░░░░\n" +
                 "░░░░░\n" +
-                "═════\n" +
-                "░░║░░\n" +
-                "░░║░░\n";
+                "▓▓▓▓▓\n" +
+                "░░▓░░\n" +
+                "░░▓░░\n";
             Assert.That(Classify(input), Is.EqualTo(expected));
         }
 
@@ -74,9 +74,9 @@ namespace PlayersWorlds.Maps.MapFilters {
             var expected =
                 "░░░░░\n" +
                 "░░░░░\n" +
-                "░▒══░\n" +
-                "░║░░░\n" +
-                "░║░░░\n";
+                "░▒▓▓░\n" +
+                "░▓░░░\n" +
+                "░▓░░░\n";
             Assert.That(Classify(input), Is.EqualTo(expected));
         }
     }

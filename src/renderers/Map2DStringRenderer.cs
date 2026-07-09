@@ -37,8 +37,8 @@ namespace PlayersWorlds.Maps.Renderers {
                     buffer[cellPosition.ToIndex(rootMap.Size)] =
                         map[cellPosition].Tags.Contains(Cell.CellTag.MazeVoid) ? ' ' :
                         map[cellPosition].Tags.Contains(Cell.CellTag.MazeWallCorner) ? '▒' :
-                        map[cellPosition].Tags.Contains(Cell.CellTag.MazeWallAxisX) ? '═' :
-                        map[cellPosition].Tags.Contains(Cell.CellTag.MazeWallAxisY) ? '║' :
+                        map[cellPosition].Tags.Contains(Cell.CellTag.MazeWallAxisX) ? '▓' :
+                        map[cellPosition].Tags.Contains(Cell.CellTag.MazeWallAxisY) ? '▓' :
                         map[cellPosition].Tags.Contains(Cell.CellTag.MazeWall) ? '▓' :
                         map[cellPosition].Tags.Contains(Cell.CellTag.MazeTrail) ? '░' :
                         '0';
